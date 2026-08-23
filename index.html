@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#173f35">
+  <title>Kück's Kälbermanager</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark calf-icon" aria-hidden="true"></span><strong>Kück's Kälbermanager</strong></div>
+    <div class="date-chip"><span class="status-dot"></span><span id="currentDate"></span></div>
+    <button class="icon-button" id="resetDataButton" title="Gespeicherte Daten neu laden" aria-label="Gespeicherte Daten neu laden">↻</button>
+  </header>
+
+  <main class="app-shell">
+    <section class="page-head">
+      <div class="head-total"><span>Gesamt heute</span><strong id="overallMilk">0 l</strong><small id="overallCalves">0 Kälber</small><small id="overallTreatments">0 Behandlungen</small></div>
+    </section>
+
+    <nav class="tabs" aria-label="Hauptnavigation"><button class="tab active" data-view="overview">Übersicht</button><button class="tab" data-view="plan">Tränkeplan</button><button class="tab" data-view="settings">Einstellungen</button></nav>
+
+    <section id="overviewView" class="view">
+      <div class="section-label"><span id="lastSaved">Lokal gespeichert</span></div>
+      <div id="stableGrid" class="stable-grid"></div>
+    </section>
+
+    <section id="planView" class="view hidden">
+      <div class="section-label"><div><p class="eyebrow">ALLGEMEIN</p><h2>Tränkeplan</h2></div><button id="addPlanButton" class="button primary">+ Zeile hinzufügen</button></div>
+      <div class="settings-panel"><p class="panel-intro">Lege fest, wie viel Milch ein Kalb abhängig von seinem Alter pro Tag erhält.</p><div class="plan-table-wrap"><table><thead><tr><th>L / KALB</th><th>Von (Tag)</th><th>Bis (Tag)</th><th>Zeitraum</th><th></th></tr></thead><tbody id="planBody"></tbody></table></div><button id="savePlanButton" class="button primary save-button">Tränkeplan speichern</button></div>
+      <div class="data-note"><strong>Datenhaltung</strong><span>Kälber und Tränkeplan werden lokal auf diesem Tablet gespeichert.</span></div>
+    </section>
+    <section id="settingsView" class="view hidden">
+      <div class="section-label"><div><p class="eyebrow">ALLGEMEIN</p><h2>Aufgaben</h2></div></div>
+      <div class="settings-panel"><label class="setting-field">Aufgabe anzeigen nach (Stunden)<input id="taskDelayHours" type="number" min="0" step="0.5"></label><button id="saveSettingsButton" class="button primary save-button">Einstellungen speichern</button></div>
+    </section>
+  </main>
+
+  <div id="stableModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><div class="modal"><button class="close-button" id="closeModal" aria-label="Fenster schließen">×</button><div class="modal-heading"><div class="stable-nav"><button id="previousStable" title="Vorheriger Stall">‹</button><h2 id="modalTitle">Stall 1</h2><button id="nextStable" title="Nächster Stall">›</button></div><div class="modal-stats"><div><strong id="modalCalves">0</strong><span>Kälber</span></div><div><strong id="modalMilk">0 l</strong><span>Gesamtmenge</span></div><div class="milk-adjust"><button id="decreaseMilk" title="Milchkorrektur minus 1 Liter">−</button><strong id="milkCorrection">0 l</strong><button id="increaseMilk" title="Milchkorrektur plus 1 Liter">+</button></div></div><div id="modalTasks" class="modal-tasks"></div></div><div class="calf-list" id="calfList"></div><form id="calfForm" class="calf-form"><div class="form-title">Kalb hinzufügen</div><div class="form-row"><label>Ohrmarkennummer<input required name="tag" inputmode="numeric" data-keypad="true" placeholder="z. B. 276 1234 5678" /></label><label>Geburtsdatum<input required name="birthDate" type="date" /></label></div><button class="button primary large-action" type="submit">Kalb hinzufügen</button></form></div></div>
+  <div id="treatmentModal" class="modal-backdrop hidden" role="dialog" aria-modal="true"><div class="modal small-modal"><button class="close-button" data-close="treatmentModal" aria-label="Fenster schließen">×</button><p class="eyebrow">BEHANDLUNG</p><h2>Behandlung dokumentieren</h2><form id="treatmentForm" class="treatment-form"><label>Datum und Uhrzeit<input name="dateTime" type="datetime-local" required></label><label>Diagnose<input name="diagnosis" required placeholder="z. B. Durchfall" /><div id="diagnosisSuggestions" class="suggestions"></div></label><label>Behandlung<textarea name="treatment" required placeholder="z. B. Elektrolyte"></textarea><div id="treatmentSuggestions" class="suggestions"></div></label><fieldset class="status-switch"><legend>Status</legend><label><input name="status" value="repeat" type="radio" checked> Wiederholen</label><label><input name="status" value="completed" type="radio"> Abgeschlossen</label></fieldset><button class="button primary large-action" type="submit">Behandlung speichern</button></form></div></div>
+  <div id="moveModal" class="modal-backdrop hidden" role="dialog" aria-modal="true"><div class="modal small-modal"><button class="close-button" data-close="moveModal" aria-label="Fenster schließen">×</button><p class="eyebrow">STALLWECHSEL</p><h2>Neuen Stall auswählen</h2><div class="stable-choices" id="stableChoices"></div></div></div>
+  <div id="keypadModal" class="modal-backdrop hidden" role="dialog" aria-modal="true"><div class="modal keypad-modal"><button class="close-button" data-close="keypadModal" aria-label="Fenster schließen">×</button><p class="eyebrow">EINGABE</p><h2 id="keypadTitle">Ziffern eingeben</h2><div id="keypadDisplay" class="keypad-display"></div><div id="keypadKeys" class="keypad-keys"></div><button id="keypadDone" class="button primary large-action">Übernehmen</button></div></div>
+  <div id="toast" class="toast" role="status"></div>
+  <script src="app.js"></script>
+</body>
+</html>
