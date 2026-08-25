@@ -13,7 +13,11 @@
 <body>
   <header class="topbar">
     <div class="brand"><span class="brand-mark calf-icon" aria-hidden="true"></span><strong>Kück's Kälbermanager</strong></div>
-    <div class="date-chip"><span class="status-dot"></span><span id="currentDate"></span></div>
+    <div class="date-chip">
+      <span id="connectionLED" class="status-dot"></span>
+      <span id="lastSyncText" style="font-size: 11px; opacity: 0.85; margin-right: 5px;"></span>
+      <span id="currentDate"></span>
+    </div>
     <button class="icon-button" id="resetDataButton" title="Gespeicherte Daten neu laden" aria-label="Gespeicherte Daten neu laden">↻</button>
   </header>
 
@@ -35,12 +39,55 @@
       <div class="data-note"><strong>Datenhaltung</strong><span>Kälber und Tränkeplan werden lokal auf diesem Tablet gespeichert.</span></div>
     </section>
     <section id="settingsView" class="view hidden">
-      <div class="section-label"><div><p class="eyebrow">ALLGEMEIN</p><h2>Aufgaben</h2></div></div>
-      <div class="settings-panel"><label class="setting-field">Aufgabe anzeigen nach (Stunden)<input id="taskDelayHours" type="number" min="0" step="0.5"></label><button id="saveSettingsButton" class="button primary save-button">Einstellungen speichern</button></div>
+      <div class="section-label"><div><p class="eyebrow">EINSTELLUNGEN</p><h2>Google-Sheets Verbindung</h2></div></div>
+      <div class="settings-panel">
+        <p class="panel-intro">Konfiguriere die Synchronisation mit Deiner Google-Tabelle.</p>
+        <label class="setting-field">Google-Tabellen-ID<input id="sheetId" type="text" placeholder="z. B. 1abc..." autocomplete="off"></label>
+        <label class="setting-field">Apps-Script-API-URL<input id="apiUrl" type="url" placeholder="https://script.google.com/macros/s/.../exec" autocomplete="url"></label>
+        <button id="saveSettingsButton" class="button primary save-button">Verbindung speichern und Daten laden</button>
+        <p id="connectionStatus" class="connection-status"></p>
+      </div>
+
+      <div class="section-label" style="margin-top: 32px;"><div><p class="eyebrow">AUFGABEN</p><h2>Aufgaben-Einstellungen</h2></div></div>
+      <div class="settings-panel">
+        <p class="panel-intro">Lege fest, nach wie vielen Stunden offene Behandlungen wiederholt werden sollen.</p>
+        <label class="setting-field">Aufgabe anzeigen nach (Stunden)<input id="taskDelayHours" type="number" min="0" step="0.5"></label>
+        <button id="saveTasksSettingsButton" class="button primary save-button">Aufgaben-Einstellung speichern</button>
+      </div>
     </section>
   </main>
 
-  <div id="stableModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><div class="modal"><button class="close-button" id="closeModal" aria-label="Fenster schließen">×</button><div class="modal-heading"><div class="stable-nav"><button id="previousStable" title="Vorheriger Stall">‹</button><h2 id="modalTitle">Stall 1</h2><button id="nextStable" title="Nächster Stall">›</button></div><div class="modal-stats"><div><strong id="modalCalves">0</strong><span>Kälber</span></div><div><strong id="modalMilk">0 l</strong><span>Gesamtmenge</span></div><div class="milk-adjust"><button id="decreaseMilk" title="Milchkorrektur minus 1 Liter">−</button><strong id="milkCorrection">0 l</strong><button id="increaseMilk" title="Milchkorrektur plus 1 Liter">+</button></div></div><div id="modalTasks" class="modal-tasks"></div></div><div class="calf-list" id="calfList"></div><form id="calfForm" class="calf-form"><div class="form-title">Kalb hinzufügen</div><div class="form-row"><label>Ohrmarkennummer<input required name="tag" inputmode="numeric" data-keypad="true" placeholder="z. B. 276 1234 5678" /></label><label>Geburtsdatum<input required name="birthDate" type="date" /></label></div><button class="button primary large-action" type="submit">Kalb hinzufügen</button></form></div></div>
+  <div id="stableModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal has-sticky">
+      <div class="modal-header-sticky">
+        <button id="previousStable" title="Vorheriger Stall">‹</button>
+        <h2 id="modalTitle">Stall 1</h2>
+        <button id="nextStable" title="Nächster Stall">›</button>
+        <button class="close-button-new" id="closeModal" aria-label="Fenster schließen">×</button>
+      </div>
+      <div class="modal-scroll-content">
+        <div class="modal-stats">
+          <div><strong id="modalCalves">0</strong><span>Kälber</span></div>
+          <div><strong id="modalMilk">0 l</strong><span>Gesamtmenge</span></div>
+          <div class="milk-adjust">
+            <button id="decreaseMilk" title="Milchkorrektur minus 1 Liter">−</button>
+            <strong id="milkCorrection">0 l</strong>
+            <button id="increaseMilk" title="Milchkorrektur plus 1 Liter">+</button>
+          </div>
+        </div>
+        <div id="modalTasks" class="modal-tasks"></div>
+        <div class="calf-list" id="calfList"></div>
+        <form id="calfForm" class="calf-form">
+          <div class="form-title">Kalb hinzufügen</div>
+          <div class="form-row">
+            <label>Ohrmarkennummer<input required name="tag" inputmode="numeric" data-keypad="true" placeholder="z. B. 276 1234 5678" /></label>
+            <label>Geburtsdatum<input required name="birthDate" type="date" /></label>
+          </div>
+          <button class="button primary large-action" type="submit">Kalb hinzufügen</button>
+        </form>
+      </div>
+    </div>
+  </div>
   <div id="treatmentModal" class="modal-backdrop hidden" role="dialog" aria-modal="true"><div class="modal small-modal"><button class="close-button" data-close="treatmentModal" aria-label="Fenster schließen">×</button><p class="eyebrow">BEHANDLUNG</p><h2>Behandlung dokumentieren</h2><form id="treatmentForm" class="treatment-form"><label>Datum und Uhrzeit<input name="dateTime" type="datetime-local" required></label><label>Diagnose<input name="diagnosis" required placeholder="z. B. Durchfall" /><div id="diagnosisSuggestions" class="suggestions"></div></label><label>Behandlung<textarea name="treatment" required placeholder="z. B. Elektrolyte"></textarea><div id="treatmentSuggestions" class="suggestions"></div></label><fieldset class="status-switch"><legend>Status</legend><label><input name="status" value="repeat" type="radio" checked> Wiederholen</label><label><input name="status" value="completed" type="radio"> Abgeschlossen</label></fieldset><button class="button primary large-action" type="submit">Behandlung speichern</button></form></div></div>
   <div id="moveModal" class="modal-backdrop hidden" role="dialog" aria-modal="true"><div class="modal small-modal"><button class="close-button" data-close="moveModal" aria-label="Fenster schließen">×</button><p class="eyebrow">STALLWECHSEL</p><h2>Neuen Stall auswählen</h2><div class="stable-choices" id="stableChoices"></div></div></div>
   <div id="keypadModal" class="modal-backdrop hidden" role="dialog" aria-modal="true"><div class="modal keypad-modal"><button class="close-button" data-close="keypadModal" aria-label="Fenster schließen">×</button><p class="eyebrow">EINGABE</p><h2 id="keypadTitle">Ziffern eingeben</h2><div id="keypadDisplay" class="keypad-display"></div><div id="keypadKeys" class="keypad-keys"></div><button id="keypadDone" class="button primary large-action">Übernehmen</button></div></div>
