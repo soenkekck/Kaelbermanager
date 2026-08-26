@@ -14,11 +14,15 @@
   <header class="topbar">
     <div class="brand"><span class="brand-mark calf-icon" aria-hidden="true"></span><strong>Kück's Kälbermanager</strong></div>
     <div class="date-chip">
+      <span id="syncSpinner" class="sync-spinner hidden" title="Synchronisiere..."></span>
       <span id="connectionLED" class="status-dot"></span>
       <span id="lastSyncText" style="font-size: 11px; opacity: 0.85; margin-right: 5px;"></span>
       <span id="currentDate"></span>
     </div>
-    <button class="icon-button" id="resetDataButton" title="Gespeicherte Daten neu laden" aria-label="Gespeicherte Daten neu laden">↻</button>
+    <div style="display:flex; gap:8px;">
+      <button class="icon-button" id="openSettingsButton" title="Google-Sheets Einstellungen" aria-label="Google-Sheets Einstellungen">⚙</button>
+      <button class="icon-button" id="resetDataButton" title="Gespeicherte Daten neu laden" aria-label="Gespeicherte Daten neu laden">↻</button>
+    </div>
   </header>
 
   <main class="app-shell">
@@ -39,16 +43,7 @@
       <div class="data-note"><strong>Datenhaltung</strong><span>Kälber und Tränkeplan werden lokal auf diesem Tablet gespeichert.</span></div>
     </section>
     <section id="settingsView" class="view hidden">
-      <div class="section-label"><div><p class="eyebrow">EINSTELLUNGEN</p><h2>Google-Sheets Verbindung</h2></div></div>
-      <div class="settings-panel">
-        <p class="panel-intro">Konfiguriere die Synchronisation mit Deiner Google-Tabelle.</p>
-        <label class="setting-field">Google-Tabellen-ID<input id="sheetId" type="text" placeholder="z. B. 1abc..." autocomplete="off"></label>
-        <label class="setting-field">Apps-Script-API-URL<input id="apiUrl" type="url" placeholder="https://script.google.com/macros/s/.../exec" autocomplete="url"></label>
-        <button id="saveSettingsButton" class="button primary save-button">Verbindung speichern und Daten laden</button>
-        <p id="connectionStatus" class="connection-status"></p>
-      </div>
-
-      <div class="section-label" style="margin-top: 32px;"><div><p class="eyebrow">AUFGABEN</p><h2>Aufgaben-Einstellungen</h2></div></div>
+      <div class="section-label"><div><p class="eyebrow">AUFGABEN</p><h2>Aufgaben-Einstellungen</h2></div></div>
       <div class="settings-panel">
         <p class="panel-intro">Lege fest, nach wie vielen Stunden offene Behandlungen wiederholt werden sollen.</p>
         <label class="setting-field">Aufgabe anzeigen nach (Stunden)<input id="taskDelayHours" type="number" min="0" step="0.5"></label>
@@ -91,6 +86,24 @@
   <div id="treatmentModal" class="modal-backdrop hidden" role="dialog" aria-modal="true"><div class="modal small-modal"><button class="close-button" data-close="treatmentModal" aria-label="Fenster schließen">×</button><p class="eyebrow">BEHANDLUNG</p><h2>Behandlung dokumentieren</h2><form id="treatmentForm" class="treatment-form"><label>Datum und Uhrzeit<input name="dateTime" type="datetime-local" required></label><label>Diagnose<input name="diagnosis" required placeholder="z. B. Durchfall" /><div id="diagnosisSuggestions" class="suggestions"></div></label><label>Behandlung<textarea name="treatment" required placeholder="z. B. Elektrolyte"></textarea><div id="treatmentSuggestions" class="suggestions"></div></label><fieldset class="status-switch"><legend>Status</legend><label><input name="status" value="repeat" type="radio" checked> Wiederholen</label><label><input name="status" value="completed" type="radio"> Abgeschlossen</label></fieldset><button class="button primary large-action" type="submit">Behandlung speichern</button></form></div></div>
   <div id="moveModal" class="modal-backdrop hidden" role="dialog" aria-modal="true"><div class="modal small-modal"><button class="close-button" data-close="moveModal" aria-label="Fenster schließen">×</button><p class="eyebrow">STALLWECHSEL</p><h2>Neuen Stall auswählen</h2><div class="stable-choices" id="stableChoices"></div></div></div>
   <div id="keypadModal" class="modal-backdrop hidden" role="dialog" aria-modal="true"><div class="modal keypad-modal"><button class="close-button" data-close="keypadModal" aria-label="Fenster schließen">×</button><p class="eyebrow">EINGABE</p><h2 id="keypadTitle">Ziffern eingeben</h2><div id="keypadDisplay" class="keypad-display"></div><div id="keypadKeys" class="keypad-keys"></div><button id="keypadDone" class="button primary large-action">Übernehmen</button></div></div>
+  <div id="settingsModal" class="modal-backdrop hidden" role="dialog" aria-modal="true">
+    <div class="modal small-modal">
+      <button class="close-button" id="closeSettingsModal" aria-label="Fenster schließen">×</button>
+      <p class="eyebrow">EINSTELLUNGEN</p>
+      <h2>Google-Sheets Verbindung</h2>
+      <div class="settings-panel" style="margin-top:16px; border:0; padding:0; box-shadow:none;">
+        <p class="panel-intro">Konfiguriere die Synchronisation mit Deiner Google-Tabelle. Ohne aktive Verbindung kann die App nicht genutzt werden.</p>
+        <label class="setting-field" style="display:block; margin-bottom:12px; font-size:12px; color:var(--muted); font-weight:700;">Google-Tabellen-ID
+          <input id="sheetId" type="text" placeholder="z. B. 1abc..." autocomplete="off" style="display:block; width:100%; margin-top:6px; padding:10px; border:1px solid var(--line); border-radius:7px; background:#fff; color:var(--ink);" />
+        </label>
+        <label class="setting-field" style="display:block; margin-bottom:16px; font-size:12px; color:var(--muted); font-weight:700;">Apps-Script-API-URL
+          <input id="apiUrl" type="url" placeholder="https://script.google.com/macros/s/.../exec" autocomplete="url" style="display:block; width:100%; margin-top:6px; padding:10px; border:1px solid var(--line); border-radius:7px; background:#fff; color:var(--ink);" />
+        </label>
+        <button id="saveSettingsButton" class="button primary large-action" style="width:100%;">Verbindung speichern und Daten laden</button>
+        <p id="connectionStatus" class="connection-status" style="margin-top:12px; font-size:13px; font-weight:700;"></p>
+      </div>
+    </div>
+  </div>
   <div id="toast" class="toast" role="status"></div>
   <script src="app.js"></script>
 </body>
