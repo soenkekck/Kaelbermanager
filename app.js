@@ -284,10 +284,13 @@ document.getElementById('saveSettingsButton').onclick = async () => {
   saveConfig();
   const ok = await loadRemote();
   if (ok) {
+    isSettingsLocked = false;
     close('settingsModal');
     showToast('Verbindung erfolgreich hergestellt!');
   } else {
     document.getElementById('connectionStatus').textContent = 'Verbindung fehlgeschlagen. Bitte ID und URL prüfen.';
+    updateConnectionStatus(false);
+    openSettingsModal(true);
   }
   renderOverview();
 };

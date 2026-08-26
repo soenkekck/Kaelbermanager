@@ -1,13 +1,11 @@
 # Active Context: Kück's Kälbermanager
 
 ## Current Focus
-- Implemented robust auto-refresh mechanisms (`visibilitychange`, window `focus`, and 60s background polling) to automatically sync remote changes from Google Sheets when returning to the app or waking up the tablet.
-- Added a visual loading spinner (`syncSpinner`) in the topbar that automatically appears during upload/download sync operations and disappears immediately upon completion.
+- Fixed connection failure handling when updating Sheets ID/URL: if the connection test fails after saving settings, the status LED correctly updates to disconnected, the error message is displayed, and the settings modal is forced open and locked (`openSettingsModal(true)`) so invalid configurations cannot be bypassed.
+- Implemented robust auto-refresh mechanisms (`visibilitychange`, window `focus`, and 60s background polling) and visual loading spinner (`syncSpinner`).
 
 ## Recent Changes
-- Updated `index.html` to add `#syncSpinner`.
-- Updated `styles.css` with `.sync-spinner` animation styles.
-- Updated `app.js` with `showSpinner`/`hideSpinner` wrappers around `loadRemote()` and `save()`, plus focus/visibility/polling event listeners.
+- Updated `saveSettingsButton.onclick` in `app.js` to call `updateConnectionStatus(false)` and `openSettingsModal(true)` when `loadRemote()` fails.
 
 ## Next Steps / Upcoming Tasks
 - Keep the Memory Bank synchronized with any future code changes or feature additions.
