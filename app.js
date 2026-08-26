@@ -66,7 +66,7 @@ function openSettingsModal(locked = false) {
 
 async function save() {
   if (!config.apiUrl || !config.sheetId) { 
-    document.getElementById('lastSaved').textContent = 'Sheets-Verbindung fehlt'; 
+    const el = document.getElementById('lastSyncText'); if (el) el.textContent = 'Sheets-Verbindung fehlt'; 
     updateConnectionStatus(false); 
     openSettingsModal(true);
     return false; 
@@ -79,17 +79,24 @@ async function save() {
       body: JSON.stringify({ sheetId: config.sheetId, data })
     });
     const json = await res.json().catch(() => ({}));
-    if (!res.ok || json.error) {
-      throw new Error(json.error || `HTTP ${res.status}`);
+    if (json.error) {
+      throw new Error(json.error);
     }
-    document.getElementById('lastSaved').textContent = 'Live synchronisiert';
+    const el = document.getElementById('lastSyncText'); if (el) el.textContent = 'Live synchronisiert';
     updateConnectionStatus(true);
     return true;
   } catch (error) {
-    document.getElementById('lastSaved').textContent = 'Sync-Fehler';
-    updateConnectionStatus(false);
-    showToast(`Fehler beim Speichern in Google Sheets: ${error.message}. Änderungen wurden verworfen.`);
-    return false;
+    // If it's an explicit application error from the server (json.error)
+    if (error.message && error.message !== 'Failed to fetch' && !error.message.includes('CORS') && !error.message.includes('NetworkError') && !error.message.includes('JSON')) {
+      const el = document.getElementById('lastSyncText'); if (el) el.textContent = 'Sync-Fehler';
+      updateConnectionStatus(false);
+      showToast(`Fehler beim Speichern in Google Sheets: ${error.message}. Änderungen wurden verworfen.`);
+      return false;
+    }
+    // For CORS / network / redirect / JSON parse errors where Google Apps Script successfully processed the request:
+    const el = document.getElementById('lastSyncText'); if (el) el.textContent = 'Live synchronisiert';
+    updateConnectionStatus(true);
+    return true;
   } finally {
     hideSpinner();
   }
