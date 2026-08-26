@@ -159,14 +159,51 @@ function renderOverview(){
     grid.insertAdjacentHTML('beforeend',`<button class="stable-card" data-stable="${n}"><span class="stable-number">Stall ${String(n).padStart(2,'0')}</span><span class="stable-arrow">→</span><span class="calf-icon"></span><h3>Stall ${n}</h3><div class="stable-count"><strong>${cs.length}</strong><span>${cs.length===1?'Kalb':'Kälber'}</span></div><div class="stable-milk"><span>Milchmenge heute</span><strong>${litres(m)}</strong></div>${tasks.length?`<div class="treatment-badge">💉 ${tasks.length} Behandlung${tasks.length>1?'en':''} nötig</div>`:''}</button>`);
   }
   document.getElementById('overallMilk').textContent=litres(totalMilk);
-  document.getElementById('overallCalves').textContent=`${totalCalves} Kälber · ${totalTasks} Behandlungen nötig`;
+  document.getElementById('overallCalves').textContent=`${totalCalves} Kälber`;
+  document.getElementById('overallTreatments').textContent=`${totalTasks} Behandlungen`;
 }
 function tasksFor(stable){const cutoff=Date.now()-Number(data.taskDelayHours)*3600000;return data.calves.filter(c=>c.stable===stable).flatMap(c=>(c.treatments||[]).map((t,i)=>({calf:c,treatment:t,index:i}))).filter(x=>(x.treatment.status==='repeat'||x.treatment.repeat)&&!x.treatment.taskDismissed&&(!x.treatment.createdAt||Date.parse(x.treatment.createdAt)<=cutoff));}
-function renderModal(){const cs=data.calves.filter(c=>c.stable===selectedStable),tasks=tasksFor(selectedStable),correction=Number(data.corrections[selectedStable]||0);document.getElementById('modalTitle').textContent=`Stall ${selectedStable}`;document.getElementById('modalCalves').textContent=cs.length;document.getElementById('modalMilk').textContent=litres(cs.reduce((s,c)=>s+milk(c),0)+correction);document.getElementById('milkCorrection').textContent=litres(correction);document.getElementById('modalTasks').innerHTML=tasks.map(x=>`<div class="task-item"><button class="task-button" data-task-id="${x.calf.id}" data-task-index="${x.index}"><strong>${x.treatment.treatment}</strong><span>${x.treatment.diagnosis}</span></button><button class="task-done" data-task-id="${x.calf.id}" data-task-index="${x.index}">✓</button><button class="task-delete" data-task-id="${x.calf.id}" data-task-index="${x.index}">🗑</button></div>`).join('');document.getElementById('calfList').innerHTML=cs.map(c=>`<div class="calf-row"><div class="calf-tag"><span class="calf-icon"></span>${c.tag}<small>Geboren: ${date(c.birthDate)}</small><small>Eingestallt: ${date(c.stableSince)}</small></div><div class="calf-age"><span>Alter</span>${age(c.birthDate)}</div><div class="calf-milk"><span>Milch</span>${litres(milk(c))}</div><div class="calf-actions"><button data-treatment="${c.id}">💉</button><button data-move="${c.id}">⇄</button><button data-remove="${c.id}">×</button></div>${c.treatments?.length?`<div class="treatments">${c.treatments.map(t=>`<div><strong>${dateTime(t.dateTime||`${t.date}T00:00`)}</strong><span>${t.treatment} · ${t.diagnosis}${t.status==='repeat'?' · Wiederholen':''}${t.status==='completed'?' · Abgeschlossen':''}</span></div>`).join('')}</div>`:''}</div>`).join('');document.querySelectorAll('[data-treatment]').forEach(b=>b.onclick=()=>newTreatment(Number(b.dataset.treatment)));document.querySelectorAll('[data-move]').forEach(b=>b.onclick=()=>move(Number(b.dataset.move)));document.querySelectorAll('[data-remove]').forEach(b=>b.onclick=()=>remove(Number(b.dataset.remove)));document.querySelectorAll('.task-button,.task-done').forEach(b=>b.onclick=()=>openTask(Number(b.dataset.taskId),Number(b.dataset.taskIndex)));document.querySelectorAll('.task-delete').forEach(b=>b.onclick=()=>deleteTask(Number(b.dataset.taskId),Number(b.dataset.taskIndex)));}
+function renderModal(){
+  const cs=data.calves.filter(c=>c.stable===selectedStable),
+        tasks=tasksFor(selectedStable),
+        correction=Number(data.corrections[selectedStable]||0);
+  document.getElementById('modalTitle').textContent=`Stall ${selectedStable}`;
+  document.getElementById('modalCalves').textContent=cs.length;
+  document.getElementById('modalMilk').textContent=litres(cs.reduce((s,c)=>s+milk(c),0)+correction);
+  document.getElementById('milkCorrection').textContent=litres(correction);
+  document.getElementById('modalTasks').innerHTML=tasks.map(x=>`<div class="task-item"><button class="task-button" data-task-id="${x.calf.id}" data-task-index="${x.index}"><span>${x.treatment.diagnosis}</span><strong>${x.treatment.treatment}</strong></button><button class="task-done" data-task-id="${x.calf.id}" data-task-index="${x.index}">✓</button><button class="task-delete" data-task-id="${x.calf.id}" data-task-index="${x.index}">🗑</button></div>`).join('');
+  document.getElementById('calfList').innerHTML=cs.map(c=>`<div class="calf-row"><div class="calf-tag"><span class="calf-icon"></span>${c.tag}<small>Geboren: ${date(c.birthDate)}</small><small>Eingestallt: ${date(c.stableSince)}</small></div><div class="calf-age"><span>Alter</span>${age(c.birthDate)}</div><div class="calf-milk"><span>Milch</span>${litres(milk(c))}</div><div class="calf-actions"><button data-treatment="${c.id}">💉</button><button data-move="${c.id}">⇄</button><button data-remove="${c.id}">×</button></div>${c.treatments?.length?`<div class="treatments">${c.treatments.map(t=>`<div><strong>${dateTime(t.dateTime||`${t.date}T00:00`)}</strong><span>${t.diagnosis} · ${t.treatment}${t.status==='repeat'?' · Wiederholen':''}${t.status==='completed'?' · Abgeschlossen':''}</span></div>`).join('')}</div>`:''}</div>`).join('');
+  document.querySelectorAll('[data-treatment]').forEach(b=>b.onclick=()=>newTreatment(Number(b.dataset.treatment)));
+  document.querySelectorAll('[data-move]').forEach(b=>b.onclick=()=>move(Number(b.dataset.move)));
+  document.querySelectorAll('[data-remove]').forEach(b=>b.onclick=()=>remove(Number(b.dataset.remove)));
+  document.querySelectorAll('.task-button,.task-done').forEach(b=>b.onclick=()=>openTask(Number(b.dataset.taskId),Number(b.dataset.taskIndex)));
+  document.querySelectorAll('.task-delete').forEach(b=>b.onclick=()=>deleteTask(Number(b.dataset.taskId),Number(b.dataset.taskIndex)));
+}
 function newTreatment(id){selectedCalf=data.calves.find(c=>c.id===id);selectedTreatment=null;document.getElementById('treatmentForm').reset();document.querySelector('[name="dateTime"]').value=dateTimeKey(new Date());document.getElementById('treatmentModal').classList.remove('hidden');}
 function move(id){selectedCalf=data.calves.find(c=>c.id===id);document.getElementById('stableChoices').innerHTML=[1,2,3,4,5].filter(n=>n!==selectedCalf.stable).map(n=>`<button class="stable-choice" data-choice="${n}">Stall ${n}</button>`).join('');document.querySelectorAll('[data-choice]').forEach(b=>b.onclick=async()=>{await mutateAndSave(()=>{selectedCalf.stable=Number(b.dataset.choice);selectedCalf.stableSince=key(now);});close('moveModal');renderOverview();renderModal();});document.getElementById('moveModal').classList.remove('hidden');}
-function remove(id){if(!confirm('Kalb wirklich ausstallen?'))return;mutateAndSave(()=>{data.calves=data.calves.filter(c=>c.id!==id);}).then(()=>{renderOverview();renderModal();});}
-function deleteTask(id,index){if(!confirm('Aufgabe löschen? Die Behandlungshistorie bleibt erhalten.'))return;mutateAndSave(()=>{data.calves.find(c=>c.id===id).treatments[index].taskDismissed=true;}).then(()=>{renderOverview();renderModal();});}
+function remove(id) {
+  const modal = document.getElementById('removeCalfModal');
+  const confirmBtn = document.getElementById('confirmRemoveCalf');
+  confirmBtn.onclick = async () => {
+    await mutateAndSave(() => { data.calves = data.calves.filter(c => c.id !== id); });
+    renderOverview();
+    renderModal();
+    close('removeCalfModal');
+  };
+  modal.classList.remove('hidden');
+}
+
+function deleteTask(id, index) {
+  const modal = document.getElementById('deleteTaskModal');
+  const confirmBtn = document.getElementById('confirmDeleteTask');
+  confirmBtn.onclick = async () => {
+    await mutateAndSave(() => { data.calves.find(c => c.id === id).treatments[index].taskDismissed = true; });
+    renderOverview();
+    renderModal();
+    close('deleteTaskModal');
+  };
+  modal.classList.remove('hidden');
+}
 function close(id){document.getElementById(id).classList.add('hidden');}
 function openKeypad(input,title){keypadTarget=input;keypadFresh=true;input.select();document.getElementById('keypadTitle').textContent=title;document.getElementById('keypadDisplay').textContent=input.value||'0';document.getElementById('keypadKeys').innerHTML=['1','2','3','4','5','6','7','8','9','⌫','0',','].map(k=>`<button data-key="${k}">${k}</button>`).join('');document.querySelectorAll('[data-key]').forEach(b=>b.onclick=()=>{let v=document.getElementById('keypadDisplay').textContent;const key=b.dataset.key;if(key==='⌫'){v=v.slice(0,-1);keypadFresh=false;}else if(keypadFresh){v=key;keypadFresh=false;}else{v=v==='0'?key:v+key;}document.getElementById('keypadDisplay').textContent=v});document.getElementById('keypadModal').classList.remove('hidden');}
 function planText(r){return `Woche ${Math.ceil(r.ageFrom/7)}, Tag ${(r.ageFrom-1)%7+1} bis Woche ${Math.ceil(r.ageTo/7)}, Tag ${(r.ageTo-1)%7+1}`;}
@@ -204,10 +241,14 @@ document.getElementById('calfForm').onsubmit=async e=>{
   const ok = await mutateAndSave(()=>{
     data.calves.push({id:Date.now(),tag:f.get('tag'),birthDate:f.get('birthDate'),stable:selectedStable,stableSince:key(now),treatments:[]});
   });
-  if(ok) e.target.reset();
+  if(ok) {
+    e.target.reset();
+    document.querySelector('[name="birthDate"]').value = key(now);
+  }
   renderOverview();
   renderModal();
 };
+document.querySelector('[name="birthDate"]').value = key(now);
 document.querySelector('[name="tag"]').onfocus=e=>openKeypad(e.target,'Ohrmarkennummer');
 document.getElementById('treatmentForm').onsubmit=async e=>{
   e.preventDefault();

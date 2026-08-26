@@ -27,19 +27,18 @@
 
   <main class="app-shell">
     <section class="page-head">
-      <div class="head-total"><span>Gesamt heute</span><strong id="overallMilk">0 l</strong><small id="overallCalves">0 Kälber</small><small id="overallTreatments">0 Behandlungen</small></div>
+      <div class="head-total"><span>Gesamt</span><strong id="overallMilk">0 l</strong><small id="overallCalves">0 Kälber</small><small id="overallTreatments">0 Behandlungen</small></div>
     </section>
 
     <nav class="tabs" aria-label="Hauptnavigation"><button class="tab active" data-view="overview">Übersicht</button><button class="tab" data-view="plan">Tränkeplan</button><button class="tab" data-view="settings">Einstellungen</button></nav>
 
     <section id="overviewView" class="view">
-      <div class="section-label"><span id="lastSaved">Lokal gespeichert</span></div>
       <div id="stableGrid" class="stable-grid"></div>
     </section>
 
     <section id="planView" class="view hidden">
       <div class="section-label"><div><p class="eyebrow">ALLGEMEIN</p><h2>Tränkeplan</h2></div><button id="addPlanButton" class="button primary">+ Zeile hinzufügen</button></div>
-      <div class="settings-panel"><p class="panel-intro">Lege fest, wie viel Milch ein Kalb abhängig von seinem Alter pro Tag erhält.</p><div class="plan-table-wrap"><table><thead><tr><th>L / KALB</th><th>Von (Tag)</th><th>Bis (Tag)</th><th>Zeitraum</th><th></th></tr></thead><tbody id="planBody"></tbody></table></div><button id="savePlanButton" class="button primary save-button">Tränkeplan speichern</button></div>
+      <div class="settings-panel"><p class="panel-intro">Lege fest, wie viel Milch ein Kalb abhängig von seinem Alter erhält.</p><div class="plan-table-wrap"><table><thead><tr><th>L / KALB</th><th>Von (Tag)</th><th>Bis (Tag)</th><th>Zeitraum</th><th></th></tr></thead><tbody id="planBody"></tbody></table></div><button id="savePlanButton" class="button primary save-button">Tränkeplan speichern</button></div>
       <div class="data-note"><strong>Datenhaltung</strong><span>Kälber und Tränkeplan werden lokal auf diesem Tablet gespeichert.</span></div>
     </section>
     <section id="settingsView" class="view hidden">
@@ -85,6 +84,8 @@
   </div>
   <div id="treatmentModal" class="modal-backdrop hidden" role="dialog" aria-modal="true"><div class="modal small-modal"><button class="close-button" data-close="treatmentModal" aria-label="Fenster schließen">×</button><p class="eyebrow">BEHANDLUNG</p><h2>Behandlung dokumentieren</h2><form id="treatmentForm" class="treatment-form"><label>Datum und Uhrzeit<input name="dateTime" type="datetime-local" required></label><label>Diagnose<input name="diagnosis" required placeholder="z. B. Durchfall" /><div id="diagnosisSuggestions" class="suggestions"></div></label><label>Behandlung<textarea name="treatment" required placeholder="z. B. Elektrolyte"></textarea><div id="treatmentSuggestions" class="suggestions"></div></label><fieldset class="status-switch"><legend>Status</legend><label><input name="status" value="repeat" type="radio" checked> Wiederholen</label><label><input name="status" value="completed" type="radio"> Abgeschlossen</label></fieldset><button class="button primary large-action" type="submit">Behandlung speichern</button></form></div></div>
   <div id="moveModal" class="modal-backdrop hidden" role="dialog" aria-modal="true"><div class="modal small-modal"><button class="close-button" data-close="moveModal" aria-label="Fenster schließen">×</button><p class="eyebrow">STALLWECHSEL</p><h2>Neuen Stall auswählen</h2><div class="stable-choices" id="stableChoices"></div></div></div>
+  <div id="removeCalfModal" class="modal-backdrop hidden" role="dialog" aria-modal="true"><div class="modal small-modal"><button class="close-button" data-close="removeCalfModal" aria-label="Fenster schließen">×</button><p class="eyebrow">AUSSTALLEN</p><h2>Kalb wirklich ausstallen?</h2><p style="margin:16px 0; color:var(--muted); font-size:14px;">Möchtest du dieses Kalb wirklich ausstallen?</p><div style="display:flex; gap:12px; margin-top:24px;"><button id="confirmRemoveCalf" class="button primary large-action" style="flex:1; background:#a6533e;">Ja, ausstallen</button><button class="button large-action" data-close="removeCalfModal" style="flex:1; background:#fff; border:1px solid var(--line); color:var(--ink);">Abbrechen</button></div></div></div>
+  <div id="deleteTaskModal" class="modal-backdrop hidden" role="dialog" aria-modal="true"><div class="modal small-modal"><button class="close-button" data-close="deleteTaskModal" aria-label="Fenster schließen">×</button><p class="eyebrow">AUFGABE</p><h2>Aufgabe löschen?</h2><p style="margin:16px 0; color:var(--muted); font-size:14px;">Die Behandlungshistorie bleibt erhalten.</p><div style="display:flex; gap:12px; margin-top:24px;"><button id="confirmDeleteTask" class="button primary large-action" style="flex:1; background:#a6533e;">Ja, löschen</button><button class="button large-action" data-close="deleteTaskModal" style="flex:1; background:#fff; border:1px solid var(--line); color:var(--ink);">Abbrechen</button></div></div></div>
   <div id="keypadModal" class="modal-backdrop hidden" role="dialog" aria-modal="true"><div class="modal keypad-modal"><button class="close-button" data-close="keypadModal" aria-label="Fenster schließen">×</button><p class="eyebrow">EINGABE</p><h2 id="keypadTitle">Ziffern eingeben</h2><div id="keypadDisplay" class="keypad-display"></div><div id="keypadKeys" class="keypad-keys"></div><button id="keypadDone" class="button primary large-action">Übernehmen</button></div></div>
   <div id="settingsModal" class="modal-backdrop hidden" role="dialog" aria-modal="true">
     <div class="modal small-modal">

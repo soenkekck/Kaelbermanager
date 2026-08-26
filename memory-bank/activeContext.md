@@ -1,12 +1,18 @@
 # Active Context: Kück's Kälbermanager
 
 ## Current Focus
-- Fixed connection failure handling when updating Sheets ID/URL: if the connection test fails after saving settings, the status LED correctly updates to disconnected, the error message is displayed, and the settings modal is forced open and locked (`openSettingsModal(true)`) so invalid configurations cannot be bypassed.
-- Implemented robust auto-refresh mechanisms (`visibilitychange`, window `focus`, and 60s background polling) and visual loading spinner (`syncSpinner`).
+- Fully updated Kälbermanager frontend for enhanced UI styling, usability in the barn, and custom confirm popups.
+- Restructured SVG icons to present a high-definition front-facing calf head with ears and nostrils.
+- Removed everyday-centric wording and aligned statistics to plain "Gesamt".
 
 ## Recent Changes
-- Updated `saveSettingsButton.onclick` in `app.js` to call `updateConnectionStatus(false)` and `openSettingsModal(true)` when `loadRemote()` fails.
+- Replaced the front-view calf head logo and icon masks in `styles.css` with the custom-designed calf/cattle group SVG path (with separate paths for left/right ears, head, and snout) in a centered square viewBox.
+- Removed text references to milk per day ("pro Tag") and updated total overview text to "Gesamt".
+- Standardized calf addition form with today's date preselected and enlarged calendar layout.
+- Swapped Order of Diagnosis and Treatment in the popup history and task displays.
+- Enlarged touch actions for treatments, moves, and removals.
+- Created custom confirmations for task deletion and calf removal, completely replacing native browser popups.
+- Solved tile shifting issues with an improved flex column setup on the stable cards.
 
 ## Next Steps / Upcoming Tasks
-- Keep the Memory Bank synchronized with any future code changes or feature additions.
 - Maintain high code quality and strict adherence to KISS and DRY principles.
