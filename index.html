@@ -27,18 +27,41 @@
 
   <main class="app-shell">
     <section class="page-head">
-      <div class="head-total"><span>Gesamt</span><strong id="overallMilk">0 l</strong><small id="overallCalves">0 Kälber</small><small id="overallTreatments">0 Behandlungen</small></div>
+      <div class="head-total"><span>Gesamt</span><div class="milk-total"><span>Vollmilch</span><strong id="overallWholeMilk">0 l</strong></div><div class="milk-total"><span>Milchersatz</span><strong id="overallMilkReplacer">0 l</strong></div><small id="overallCalves">0 Kälber</small><small id="overallTreatments">0 Behandlungen</small></div>
     </section>
 
-    <nav class="tabs" aria-label="Hauptnavigation"><button class="tab active" data-view="overview">Übersicht</button><button class="tab" data-view="plan">Tränkeplan</button><button class="tab" data-view="settings">Einstellungen</button></nav>
+    <nav class="tabs" aria-label="Hauptnavigation"><button class="tab active" data-view="stable">Ställe</button><button class="tab" data-view="calves">Kälber</button><button class="tab" data-view="plan">Tränkeplan</button><button class="tab" data-view="settings">Einstellungen</button></nav>
 
-    <section id="overviewView" class="view">
+    <section id="stableView" class="view">
       <div id="stableGrid" class="stable-grid"></div>
+<section id="calvesView" class="view hidden">
+    <div class="section-label">
+      <div>
+        <p class="eyebrow">KÄLBER</p>
+        <h2>Alle Kälber</h2>
+      </div>
+      <input type="text" id="calvesSearch" placeholder="Suchen..." class="search-input">
+    </div>
+    <div class="calves-table-wrap">
+      <table id="calvesTable">
+        <thead>
+          <tr>
+            <th data-sort="tag">Ohrmarke</th>
+            <th data-sort="stable">Stall</th>
+            <th data-sort="age">Alter</th>
+            <th>Behandlungshistorie</th>
+          </tr>
+        </thead>
+        <tbody id="calvesBody"></tbody>
+      </table>
+    </div>
+  </section>
+
     </section>
 
     <section id="planView" class="view hidden">
       <div class="section-label"><div><p class="eyebrow">ALLGEMEIN</p><h2>Tränkeplan</h2></div><button id="addPlanButton" class="button primary">+ Zeile hinzufügen</button></div>
-      <div class="settings-panel"><p class="panel-intro">Lege fest, wie viel Milch ein Kalb abhängig von seinem Alter erhält.</p><div class="plan-table-wrap"><table><thead><tr><th>L / KALB</th><th>Von (Tag)</th><th>Bis (Tag)</th><th>Zeitraum</th><th></th></tr></thead><tbody id="planBody"></tbody></table></div><button id="savePlanButton" class="button primary save-button">Tränkeplan speichern</button></div>
+      <div class="settings-panel"><p class="panel-intro">Lege Menge und Milchart abhängig vom Alter fest.</p><div class="plan-table-wrap"><table><thead><tr><th>L / KALB</th><th>Milchart</th><th>Von (Tag)</th><th>Bis (Tag)</th><th>Zeitraum</th><th></th></tr></thead><tbody id="planBody"></tbody></table></div><button id="savePlanButton" class="button primary save-button">Tränkeplan speichern</button></div>
       <div class="data-note"><strong>Datenhaltung</strong><span>Kälber und Tränkeplan werden lokal auf diesem Tablet gespeichert.</span></div>
     </section>
     <section id="settingsView" class="view hidden">
@@ -62,12 +85,7 @@
       <div class="modal-scroll-content">
         <div class="modal-stats">
           <div><strong id="modalCalves">0</strong><span>Kälber</span></div>
-          <div><strong id="modalMilk">0 l</strong><span>Gesamtmenge</span></div>
-          <div class="milk-adjust">
-            <button id="decreaseMilk" title="Milchkorrektur minus 1 Liter">−</button>
-            <strong id="milkCorrection">0 l</strong>
-            <button id="increaseMilk" title="Milchkorrektur plus 1 Liter">+</button>
-          </div>
+          <div><strong id="modalMilk">0 l</strong><span id="modalMilkType">Milchmenge</span></div>
         </div>
         <div id="modalTasks" class="modal-tasks"></div>
         <div class="calf-list" id="calfList"></div>

@@ -7,9 +7,9 @@
   - Age calculation (days, weeks, formatting).
   - Pen transfer (*Stallwechsel*).
 - **Feeding Plan (*Tränkeplan*):**
-  - Dynamic age ranges and milk volume configuration.
-  - Automatic daily milk requirement calculation per calf and overall total.
-  - Individual corrections support.
+  - Dynamic age ranges, milk volume, and exclusive whole milk/milk replacer selection per plan row.
+  - Stall daily quantity uses the youngest calf's applicable ration multiplied by the number of calves in that stall.
+  - Whole milk and milk replacer totals are calculated separately from stall quantities; calf details retain individual age-based amounts.
 - **Health & Treatments:**
   - Diagnosis and treatment logging.
   - Status management (Repeat / Completed).

@@ -8,7 +8,7 @@ const defaultPlan = [
 ];
 let config = { ...defaultConfig, ...(JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') || {}) };
 let data = { calves: [], plan: structuredClone(defaultPlan), corrections: {}, taskDelayHours: 3 };
-data.corrections ||= {}; data.taskDelayHours ??= 3; data.suggestions ||= { diagnosis: [], treatment: [] }; data.plan.forEach((r,i) => { r.ageFrom ??= defaultPlan[i]?.ageFrom ?? 1; r.ageTo ??= defaultPlan[i]?.ageTo ?? 9999; }); data.calves.forEach(c => { c.stableSince ||= c.birthDate; c.treatments ||= []; c.treatments.forEach(t => { if (t.diagnosis && !data.suggestions.diagnosis.includes(t.diagnosis)) data.suggestions.diagnosis.push(t.diagnosis); if (t.treatment && !data.suggestions.treatment.includes(t.treatment)) data.suggestions.treatment.push(t.treatment); }); });
+data.corrections ||= {}; data.taskDelayHours ??= 3; data.suggestions ||= { diagnosis: [], treatment: [] }; data.plan = normalizePlan(data.plan); data.plan.forEach((r,i) => { r.ageFrom ??= defaultPlan[i]?.ageFrom ?? 1; r.ageTo ??= defaultPlan[i]?.ageTo ?? 9999; }); data.calves.forEach(c => { c.stableSince ||= c.birthDate; c.treatments ||= []; c.treatments.forEach(t => { if (t.diagnosis && !data.suggestions.diagnosis.includes(t.diagnosis)) data.suggestions.diagnosis.push(t.diagnosis); if (t.treatment && !data.suggestions.treatment.includes(t.treatment)) data.suggestions.treatment.push(t.treatment); }); });
 let selectedStable = 1, selectedCalf = null, selectedTreatment = null, keypadTarget = null, keypadFresh = false, spinnerPointer = false, isSettingsLocked = false; const now = new Date();
 const key = d => d.toISOString().slice(0,10); const dateTimeKey = d => `${key(d)}T${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 const date = v => { const [y,m,d] = v.split('-'); return `${d.padStart(2,'0')}.${m.padStart(2,'0')}.${y}`; }; const dateTime = v => `${date(v.split('T')[0])} ${v.split('T')[1].slice(0,5)}`;
@@ -17,17 +17,40 @@ const age = birth => { const d=days(birth), w=Math.floor(d/7), r=d%7; return `${
 function ensureValidData(d) {
   return {
     calves: d.calves || [],
-    plan: d.plan || structuredClone(defaultPlan),
+    plan: normalizePlan(d.plan),
     corrections: d.corrections || {},
     taskDelayHours: d.taskDelayHours ?? 3,
     suggestions: d.suggestions || { diagnosis: [], treatment: [] }
   };
 }
 
-function milk(calf) { 
+function normalizePlan(plan) {
+  return (plan || structuredClone(defaultPlan)).map(row => ({
+    ...row,
+    milkType: row.milkType === 'milchersatz' ? 'milchersatz' : 'vollmilch'
+  }));
+}
+
+function planRowFor(calf) {
   if (!data || !data.plan) return 0;
-  const row=data.plan.find(r=>days(calf.birthDate)>=Number(r.ageFrom)&&days(calf.birthDate)<=Number(r.ageTo)); 
-  return row ? Number(row.amount) : 0; 
+  return data.plan.find(row => days(calf.birthDate) >= Number(row.ageFrom) && days(calf.birthDate) <= Number(row.ageTo));
+}
+
+function milk(calf) {
+  const row = planRowFor(calf);
+  return row ? Number(row.amount) : 0;
+}
+
+function stableMilk(stable) {
+  const calves = data.calves.filter(calf => calf.stable === stable);
+  if (!calves.length) return { milkType: null, amount: 0 };
+
+  const youngest = calves.reduce((current, calf) => days(calf.birthDate) < days(current.birthDate) ? calf : current);
+  const row = planRowFor(youngest);
+  return {
+    milkType: row?.milkType || null,
+    amount: (row ? Number(row.amount) : 0) * calves.length
+  };
 }
 function updateConnectionStatus(success){ const led = document.getElementById('connectionLED'); if (led) { if (success) { led.classList.remove('disconnected'); led.classList.add('connected'); } else { led.classList.remove('connected'); led.classList.add('disconnected'); } } }
 function showToast(msg) {
@@ -153,31 +176,34 @@ function renderOverview(){
     console.warn('renderOverview called with invalid data, skipping.');
     return;
   }
-  let totalMilk=0,totalCalves=0,totalTasks=0;
+  let totalWholeMilk=0,totalMilkReplacer=0,totalCalves=0,totalTasks=0;
   const grid=document.getElementById('stableGrid');
   grid.innerHTML='';
   for(let n=1;n<=5;n++){
-    const cs=data.calves.filter(c=>c.stable===n),
-          m=cs.reduce((s,c)=>s+milk(c),0)+Number(data.corrections[n]||0),
+        const cs=data.calves.filter(c=>c.stable===n),
+          m=stableMilk(n),
           tasks=tasksFor(n);
-    totalMilk+=m;
+        if (m.milkType === 'milchersatz') totalMilkReplacer += m.amount;
+        else totalWholeMilk += m.amount;
     totalCalves+=cs.length;
     totalTasks+=tasks.length;
-    grid.insertAdjacentHTML('beforeend',`<button class="stable-card" data-stable="${n}"><span class="stable-number">Stall ${String(n).padStart(2,'0')}</span><span class="stable-arrow">→</span><span class="calf-icon"></span><h3>Stall ${n}</h3><div class="stable-count"><strong>${cs.length}</strong><span>${cs.length===1?'Kalb':'Kälber'}</span></div><div class="stable-milk"><span>Milchmenge heute</span><strong>${litres(m)}</strong></div>${tasks.length?`<div class="treatment-badge">💉 ${tasks.length} Behandlung${tasks.length>1?'en':''} nötig</div>`:''}</button>`);
+    const milkLabel=m.milkType==='milchersatz'?'Milchersatz':m.milkType==='vollmilch'?'Vollmilch':'Milchmenge';
+    grid.insertAdjacentHTML('beforeend',`<button class="stable-card" data-stable="${n}"><span class="stable-number">Stall ${String(n).padStart(2,'0')}</span><span class="stable-arrow">→</span><span class="calf-icon"></span><h3>Stall ${n}</h3><div class="stable-count"><strong>${cs.length}</strong><span>${cs.length===1?'Kalb':'Kälber'}</span></div><div class="stable-milk"><span>${milkLabel}</span><strong>${litres(m.amount)}</strong></div>${tasks.length?`<div class="treatment-badge">💉 ${tasks.length} Behandlung${tasks.length>1?'en':''} nötig</div>`:''}</button>`);
   }
-  document.getElementById('overallMilk').textContent=litres(totalMilk);
+  document.getElementById('overallWholeMilk').textContent=litres(totalWholeMilk);
+  document.getElementById('overallMilkReplacer').textContent=litres(totalMilkReplacer);
   document.getElementById('overallCalves').textContent=`${totalCalves} Kälber`;
   document.getElementById('overallTreatments').textContent=`${totalTasks} Behandlungen`;
 }
 function tasksFor(stable){const cutoff=Date.now()-Number(data.taskDelayHours)*3600000;return data.calves.filter(c=>c.stable===stable).flatMap(c=>(c.treatments||[]).map((t,i)=>({calf:c,treatment:t,index:i}))).filter(x=>(x.treatment.status==='repeat'||x.treatment.repeat)&&!x.treatment.taskDismissed&&(!x.treatment.createdAt||Date.parse(x.treatment.createdAt)<=cutoff));}
 function renderModal(){
   const cs=data.calves.filter(c=>c.stable===selectedStable),
-        tasks=tasksFor(selectedStable),
-        correction=Number(data.corrections[selectedStable]||0);
+    tasks=tasksFor(selectedStable),
+    stableQuantity=stableMilk(selectedStable);
   document.getElementById('modalTitle').textContent=`Stall ${selectedStable}`;
   document.getElementById('modalCalves').textContent=cs.length;
-  document.getElementById('modalMilk').textContent=litres(cs.reduce((s,c)=>s+milk(c),0)+correction);
-  document.getElementById('milkCorrection').textContent=litres(correction);
+  document.getElementById('modalMilk').textContent=litres(stableQuantity.amount);
+  document.getElementById('modalMilkType').textContent=stableQuantity.milkType==='milchersatz'?'Milchersatz':stableQuantity.milkType==='vollmilch'?'Vollmilch':'Milchmenge';
   
   document.getElementById('modalTasks').innerHTML=tasks.map(x=>`<div class="task-item"><button class="task-button" data-task-id="${x.calf.id}" data-task-index="${x.index}"><span class="calf-tag">${x.calf.tag}</span><strong>${x.treatment.diagnosis}</strong><span>${x.treatment.treatment}</span></button><button class="task-done" data-task-id="${x.calf.id}" data-task-index="${x.index}">✓</button><button class="task-delete" data-task-id="${x.calf.id}" data-task-index="${x.index}">🗑</button></div>`).join('');
   document.getElementById('calfList').innerHTML=cs.map(c=>`<div class="calf-row"><div class="calf-tag"><span class="calf-icon"></span>${c.tag}<small>Geboren: ${date(c.birthDate)}</small><small>Eingestallt: ${date(c.stableSince)}</small></div><div class="calf-age"><span>Alter</span>${age(c.birthDate)}</div><div class="calf-milk"><span>Milch</span>${litres(milk(c))}</div><div class="calf-actions"><button data-treatment="${c.id}">💉</button><button data-move="${c.id}">⇄</button><button data-remove="${c.id}">×</button></div>${c.treatments?.length?`<div class="treatments">${c.treatments.map(t=>`<div><strong>${dateTime(t.dateTime||`${t.date}T00:00`)}</strong><span>${t.diagnosis} · ${t.treatment}${t.status==='repeat'?' · Wiederholen':''}${t.status==='completed'?' · Abgeschlossen':''}</span></div>`).join('')}</div>`:''}</div>`).join('');
@@ -217,7 +243,8 @@ function openKeypad(input,title){keypadTarget=input;keypadFresh=true;input.selec
 function planText(r){return `Woche ${Math.ceil(r.ageFrom/7)}, Tag ${(r.ageFrom-1)%7+1} bis Woche ${Math.ceil(r.ageTo/7)}, Tag ${(r.ageTo-1)%7+1}`;}
 function renderPlan(){
   if (!data.plan) data.plan = structuredClone(defaultPlan);
-  document.getElementById('planBody').innerHTML=data.plan.map((r,i)=>`<tr><td><input class="plan-amount" data-plan="amount" data-index="${i}" type="number" min="0" step="0.5" value="${r.amount}"></td><td><input data-plan="ageFrom" data-index="${i}" type="number" min="1" value="${r.ageFrom}" ${i?'readonly':''}></td><td><input data-plan="ageTo" data-index="${i}" type="number" min="1" value="${r.ageTo}"></td><td><output class="range-output">${planText(r)}</output></td><td><button class="remove-plan" data-remove-plan="${i}">×</button></td></tr>`).join('');
+  data.plan = normalizePlan(data.plan);
+  document.getElementById('planBody').innerHTML=data.plan.map((r,i)=>`<tr><td><input class="plan-amount" data-plan="amount" data-index="${i}" type="number" min="0" step="0.5" value="${r.amount}"></td><td><fieldset class="milk-type-switch"><legend class="visually-hidden">Milchart</legend><label><input type="radio" name="milkType-${i}" data-plan="milkType" data-index="${i}" value="vollmilch" ${r.milkType==='vollmilch'?'checked':''}><span>Vollmilch</span></label><label><input type="radio" name="milkType-${i}" data-plan="milkType" data-index="${i}" value="milchersatz" ${r.milkType==='milchersatz'?'checked':''}><span>Milchersatz</span></label></fieldset></td><td><input data-plan="ageFrom" data-index="${i}" type="number" min="1" value="${r.ageFrom}" ${i?'readonly':''}></td><td><input data-plan="ageTo" data-index="${i}" type="number" min="1" value="${r.ageTo}"></td><td><output class="range-output">${planText(r)}</output></td><td><button class="remove-plan" data-remove-plan="${i}">×</button></td></tr>`).join('');
   document.querySelectorAll('.plan-amount').forEach(x=>x.onfocus=()=>openKeypad(x,'L / KALB'));
   document.querySelectorAll('[data-plan="ageTo"]').forEach(x=>x.oninput=()=>{
     const i=Number(x.dataset.index);
@@ -227,8 +254,16 @@ function renderPlan(){
     }
     renderPlanLive();
   });
-  document.querySelectorAll('[data-remove-plan]').forEach(x=>x.onclick=()=>{data.plan.splice(Number(x.dataset.removePlan),1);renderPlan();});
+  document.querySelectorAll('[data-remove-plan]').forEach(x=>x.onclick=()=>{syncPlanFromInputs();data.plan.splice(Number(x.dataset.removePlan),1);renderPlan();});
 }
+function syncPlanFromInputs(){document.querySelectorAll('[data-plan]').forEach(input=>{if(input.type==='radio'&&!input.checked)return;const value=input.dataset.plan==='milkType'?input.value:Number(input.value);data.plan[Number(input.dataset.index)][input.dataset.plan]=value;});}
+document.getElementById('addPlanButton').onclick=()=>{
+  syncPlanFromInputs();
+  const last=data.plan[data.plan.length-1];
+  const ageFrom=last?Number(last.ageTo)+1:1;
+  data.plan.push({amount:last?Number(last.amount):5,ageFrom,ageTo:ageFrom+6,milkType:'vollmilch'});
+  renderPlan();
+};
 function renderPlanLive(){document.querySelectorAll('.range-output').forEach((x,i)=>x.textContent=planText(data.plan[i]));}
 document.getElementById('currentDate').textContent=new Intl.DateTimeFormat('de-DE',{dateStyle:'full'}).format(now);
 document.querySelectorAll('.tab').forEach(t=>t.onclick=async()=>{
@@ -275,12 +310,6 @@ document.getElementById('treatmentForm').onsubmit=async e=>{
   renderOverview();
   renderModal();
 };
-document.getElementById('savePlanButton').onclick=async()=>{
-  if(!validatePlan()){document.querySelector(':invalid')?.reportValidity();return;}
-  document.querySelectorAll('[data-plan]').forEach(x=>data.plan[Number(x.dataset.index)][x.dataset.plan]=Number(x.value)||x.value);
-  await save();
-  renderOverview();
-};
 document.getElementById('keypadDone').onclick=()=>{
   if(keypadTarget){
     keypadTarget.value=document.getElementById('keypadDisplay').textContent.replace(',','.');
@@ -289,15 +318,6 @@ document.getElementById('keypadDone').onclick=()=>{
   }
   close('keypadModal');
 };
-document.getElementById('decreaseMilk').onclick=()=>adjustMilk(-1);
-document.getElementById('increaseMilk').onclick=()=>adjustMilk(1);
-async function adjustMilk(n){
-  await mutateAndSave(()=>{
-    data.corrections[selectedStable]=Number(data.corrections[selectedStable]||0)+n;
-  });
-  renderOverview();
-  renderModal();
-}
 document.getElementById('resetDataButton').onclick=async()=>{
   await loadRemote();
   renderOverview();
@@ -308,6 +328,7 @@ function reloadStored(){
   if(stored){
     data = stored;
     data.calves = data.calves || seed;
+    data.plan = normalizePlan(data.plan);
     data.corrections ||= {};
     data.taskDelayHours ??= 3;
     data.calves.forEach(c=>{
@@ -321,8 +342,8 @@ document.getElementById('stableGrid').addEventListener('click',event=>{const car
 
 document.querySelectorAll('[data-plan="ageTo"]').forEach(input=>input.addEventListener('input',()=>{const index=Number(input.dataset.index);const next=document.querySelector(`[data-plan="ageFrom"][data-index="${index+1}"]`);if(next){next.value=Number(input.value)+1;data.plan[index+1].ageFrom=Number(input.value)+1;}renderPlanLive?.();}));
 document.addEventListener('input',event=>{if(!event.target.matches('[data-plan="ageTo"]'))return;const index=Number(event.target.dataset.index);const next=document.querySelector(`[data-plan="ageFrom"][data-index="${index+1}"]`);if(next){next.value=Number(event.target.value)+1;data.plan[index+1].ageFrom=Number(event.target.value)+1;const row=next.closest('tr');row.querySelector('.range-output').textContent=planText(data.plan[index+1]);}});
-function validatePlan(){let valid=true;data.plan.forEach((row,index)=>{const from=document.querySelector(`[data-plan="ageFrom"][data-index="${index}"]`);const to=document.querySelector(`[data-plan="ageTo"][data-index="${index}"]`);if(Number(row.ageTo)<Number(row.ageFrom)){to.setCustomValidity('Bis muss mindestens Von entsprechen');valid=false;}else{to.setCustomValidity('');}if(index>0&&Number(row.ageFrom)!==Number(data.plan[index-1].ageTo)+1){from.setCustomValidity(`Muss Tag ${Number(data.plan[index-1].ageTo)+1} sein`);valid=false;}else if(from){from.setCustomValidity('');}});return valid;}
-document.getElementById('savePlanButton').onclick=()=>{if(!validatePlan()){document.querySelector(':invalid')?.reportValidity();return;}document.querySelectorAll('[data-plan]').forEach(x=>data.plan[Number(x.dataset.index)][x.dataset.plan]=Number(x.value)||x.value);save();renderOverview();};
+function validatePlan(){let valid=true;data.plan.forEach((row,index)=>{const from=document.querySelector(`[data-plan="ageFrom"][data-index="${index}"]`);const to=document.querySelector(`[data-plan="ageTo"][data-index="${index}"]`);const ageFrom=Number(from?.value);const ageTo=Number(to?.value);if(ageTo<ageFrom){to.setCustomValidity('Bis muss mindestens Von entsprechen');valid=false;}else if(to){to.setCustomValidity('');}if(index>0){const previousTo=Number(document.querySelector(`[data-plan="ageTo"][data-index="${index-1}"]`)?.value);if(ageFrom!==previousTo+1){from.setCustomValidity(`Muss Tag ${previousTo+1} sein`);valid=false;}else if(from){from.setCustomValidity('');}}else if(from){from.setCustomValidity('');}});return valid;}
+document.getElementById('savePlanButton').onclick=async()=>{if(!validatePlan()){document.querySelector(':invalid')?.reportValidity();return;}syncPlanFromInputs();await save();renderPlan();renderOverview();};
 function saveConfig(){config.sheetId=document.getElementById('sheetId').value.trim();config.apiUrl=document.getElementById('apiUrl').value.trim();localStorage.setItem(STORAGE_KEY,JSON.stringify(config));}
 document.getElementById('openSettingsButton').onclick = () => openSettingsModal(false);
 document.getElementById('closeSettingsModal').onclick = () => { if (!isSettingsLocked) close('settingsModal'); };
@@ -382,6 +403,92 @@ document.addEventListener('visibilitychange', () => {
 });
 
 setInterval(()=>{renderOverview();if(!document.getElementById('stableModal').classList.contains('hidden'))renderModal();loadRemote();},60000);
+function renderCalvesView() {
+    const calvesBody = document.getElementById('calvesBody');
+    if (!calvesBody) return;
+
+    const searchTerm = document.getElementById('calvesSearch')?.value.toLowerCase() || '';
+    let filteredCalves = data.calves.filter(calf =>
+      calf.tag.toLowerCase().includes(searchTerm) ||
+      calf.stable.toString().includes(searchTerm) ||
+      age(calf.birthDate).toLowerCase().includes(searchTerm)
+    );
+
+    // Sortierung (Standard: Ohrmarke aufsteigend)
+    const sortBy = document.querySelector('#calvesTable th[data-sort].active')?.dataset.sort || 'tag';
+    const sortDirection = document.querySelector('#calvesTable th[data-sort].active')?.classList.contains('asc') ? 1 : -1;
+
+    filteredCalves.sort((a, b) => {
+      let aValue, bValue;
+      if (sortBy === 'tag') {
+        aValue = a.tag;
+        bValue = b.tag;
+      } else if (sortBy === 'stable') {
+        aValue = a.stable;
+        bValue = b.stable;
+      } else if (sortBy === 'age') {
+        aValue = days(a.birthDate);
+        bValue = days(b.birthDate);
+      }
+      return aValue < bValue ? -1 * sortDirection : 1 * sortDirection;
+    });
+
+    calvesBody.innerHTML = filteredCalves.map(calf => {
+      const treatmentsHtml = calf.treatments?.length > 0
+        ? `<div class="treatments-in-table">${
+            calf.treatments.map(t => `
+              <div>
+                <strong>${dateTime(t.date)}</strong>
+                <span>${t.diagnosis} – ${t.treatment}</span>
+              </div>
+            `).join('')
+          }</div>`
+        : '';
+
+      return `
+        <tr>
+          <td><strong>${calf.tag}</strong><small>ID ${calf.id}</small></td>
+          <td>${calf.stable}</td>
+          <td>${age(calf.birthDate)}</td>
+          <td>${treatmentsHtml}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  document.getElementById('calvesTable')?.addEventListener('click', (event) => {
+    const header = event.target.closest('th[data-sort]');
+    if (!header) return;
+
+    document.querySelectorAll('#calvesTable th[data-sort]').forEach(th => {
+      th.classList.remove('active', 'asc', 'desc');
+    });
+
+    header.classList.add('active');
+    header.classList.add(header.classList.contains('asc') ? 'desc' : 'asc');
+
+    renderCalvesView();
+  });
+
+  document.getElementById('calvesSearch')?.addEventListener('input', renderCalvesView);
+
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
+      const viewId = tab.dataset.view + 'View';
+      document.getElementById(viewId)?.classList.remove('hidden');
+
+      // Render die entsprechende View
+      if (viewId === 'stableView') renderOverview();
+      else if (viewId === 'calvesView') renderCalvesView();
+      else if (viewId === 'planView') renderPlan();
+    });
+  });
+
+  renderOverview();
+  renderCalvesView();
 renderOverview();
 function renderSuggestions(){[['diagnosis','diagnosisSuggestions'],['treatment','treatmentSuggestions']].forEach(([field,id])=>{const container=document.getElementById(id);if(!container)return;container.innerHTML=(data.suggestions?.[field]||[]).map((value,index)=>`<span class="suggestion"><button type="button" data-suggestion-field="${field}" data-suggestion-index="${index}">${value}</button><button type="button" title="Vorschlag löschen" data-delete-suggestion-field="${field}" data-delete-suggestion-index="${index}">×</button></span>`).join('');container.querySelectorAll('[data-suggestion-field]').forEach(button=>button.addEventListener('click',()=>{document.querySelector(`[name="${field}"]`).value=button.textContent;}));container.querySelectorAll('[data-delete-suggestion-field]').forEach(button=>button.addEventListener('click',()=>{data.suggestions[button.dataset.deleteSuggestionField].splice(Number(button.dataset.deleteSuggestionIndex),1);save();renderSuggestions();}));});}
 const originalNewTreatment = newTreatment; newTreatment = function(id){originalNewTreatment(id);renderSuggestions();};
