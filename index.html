@@ -68,13 +68,13 @@
       <div class="section-label"><div><p class="eyebrow">AUFGABEN</p><h2>Aufgaben-Einstellungen</h2></div></div>
       <div class="settings-panel">
         <p class="panel-intro">Lege fest, nach wie vielen Stunden offene Behandlungen wiederholt werden sollen.</p>
-        <label class="setting-field">Aufgabe anzeigen nach (Stunden)<input id="taskDelayHours" type="number" min="0" step="0.5"></label>
+        <label class="setting-field">Aufgabe anzeigen nach (Stunden)<input id="taskDelayHours" type="number" inputmode="none" min="0" step="0.5"></label>
         <button id="saveTasksSettingsButton" class="button primary save-button">Aufgaben-Einstellung speichern</button>
       </div>
       <div class="stable-settings-section">
         <div class="section-label"><div><p class="eyebrow">VERWALTUNG</p><h2>Stallliste</h2></div><span id="stableManagementCount"></span></div>
         <form id="stableForm" class="stable-form">
-          <label>Stallnummer<input required name="stableNumber" type="number" min="1" step="1" inputmode="numeric" placeholder="z. B. 6"></label>
+          <label>Stallnummer<input required name="stableNumber" type="number" min="1" step="1" inputmode="none" placeholder="z. B. 6"></label>
           <label>Abteil <span>(optional)</span><input name="stableCompartment" type="text" maxlength="1" pattern="[A-Za-z]?" autocapitalize="characters" placeholder="A–Z"></label>
           <button class="button primary" type="submit">Stall hinzufügen</button>
         </form>
@@ -101,7 +101,7 @@
         <form id="calfForm" class="calf-form">
           <div class="form-title">Kalb hinzufügen</div>
           <div class="form-row">
-            <label>Ohrmarkennummer<input required name="tag" inputmode="numeric" data-keypad="true" placeholder="z. B. 276 1234 5678" /></label>
+            <label>Ohrmarkennummer<input required name="tag" inputmode="none" data-keypad="true" placeholder="z. B. 276 1234 5678" /></label>
             <label>Geburtsdatum<input required name="birthDate" type="date" /></label>
           </div>
           <button class="button primary large-action" type="submit">Kalb hinzufügen</button>

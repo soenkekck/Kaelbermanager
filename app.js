@@ -326,8 +326,23 @@ function planText(r){return `Woche ${Math.ceil(r.ageFrom/7)}, Tag ${(r.ageFrom-1
 function renderPlan(){
   if (!data.plan) data.plan = structuredClone(defaultPlan);
   data.plan = normalizePlan(data.plan);
-  document.getElementById('planBody').innerHTML=data.plan.map((r,i)=>`<tr><td><input class="plan-amount" data-plan="amount" data-index="${i}" type="number" min="0" step="0.5" value="${r.amount}"></td><td><fieldset class="milk-type-switch"><legend class="visually-hidden">Milchart</legend><label><input type="radio" name="milkType-${i}" data-plan="milkType" data-index="${i}" value="vollmilch" ${r.milkType==='vollmilch'?'checked':''}><span>Vollmilch</span></label><label><input type="radio" name="milkType-${i}" data-plan="milkType" data-index="${i}" value="milchersatz" ${r.milkType==='milchersatz'?'checked':''}><span>Milchersatz</span></label></fieldset></td><td><input data-plan="ageFrom" data-index="${i}" type="number" min="1" value="${r.ageFrom}" ${i?'readonly':''}></td><td><input data-plan="ageTo" data-index="${i}" type="number" min="1" value="${r.ageTo}"></td><td><output class="range-output">${planText(r)}</output></td><td><button class="remove-plan" data-remove-plan="${i}">×</button></td></tr>`).join('');
+  document.getElementById('planBody').innerHTML=data.plan.map((r,i)=>`<tr><td><input class="plan-amount" data-plan="amount" data-index="${i}" type="number" inputmode="none" min="0" step="0.5" value="${r.amount}"></td><td><fieldset class="milk-type-switch"><legend class="visually-hidden">Milchart</legend><label><input type="radio" name="milkType-${i}" data-plan="milkType" data-index="${i}" value="vollmilch" ${r.milkType==='vollmilch'?'checked':''}><span>Vollmilch</span></label><label><input type="radio" name="milkType-${i}" data-plan="milkType" data-index="${i}" value="milchersatz" ${r.milkType==='milchersatz'?'checked':''}><span>Milchersatz</span></label></fieldset></td><td><input data-plan="ageFrom" data-index="${i}" type="number" inputmode="none" min="${i ? Number(data.plan[i-1].ageFrom)+1 : 1}" value="${r.ageFrom}"></td><td><input data-plan="ageTo" data-index="${i}" type="number" inputmode="none" min="1" value="${r.ageTo}"></td><td><output class="range-output">${planText(r)}</output></td><td><button class="remove-plan" data-remove-plan="${i}">×</button></td></tr>`).join('');
   document.querySelectorAll('.plan-amount').forEach(x=>x.onfocus=()=>openKeypad(x,'L / KALB'));
+  document.querySelectorAll('[data-plan="ageFrom"]').forEach(input=>{
+    input.onfocus=()=>openKeypad(input,'VON (TAG)');
+    input.oninput=()=>{
+      const index=Number(input.dataset.index);
+      const ageFrom=Number(input.value);
+      data.plan[index].ageFrom=ageFrom;
+      if(index>0){
+        const previousAgeTo=ageFrom-1;
+        data.plan[index-1].ageTo=previousAgeTo;
+        document.querySelector(`[data-plan="ageTo"][data-index="${index-1}"]`).value=previousAgeTo;
+      }
+      renderPlanLive();
+    };
+  });
+  document.querySelectorAll('[data-plan="ageTo"]').forEach(input=>input.onfocus=()=>openKeypad(input,'BIS (TAG)'));
   document.querySelectorAll('[data-plan="ageTo"]').forEach(x=>x.oninput=()=>{
     const i=Number(x.dataset.index);
     if(data.plan[i+1]) {
@@ -478,7 +493,7 @@ const originalRenderOverview = renderOverview;
 renderOverview = function(){ originalRenderOverview(); let treatmentTotal=0; sortStables(data.stables).forEach(stable=>treatmentTotal += tasksFor(stable.id).length); document.getElementById('overallCalves').textContent=String(data.calves.length); document.getElementById('overallTreatments').textContent=String(treatmentTotal); };
 const originalRenderModal = renderModal;
 renderModal = function(){ originalRenderModal(); document.querySelectorAll('.task-item').forEach(item=>{const button=item.querySelector('.task-button');const calf=data.calves.find(c=>c.id===Number(button.dataset.taskId));const treatment=calf?.treatments?.[Number(button.dataset.taskIndex)];if(button&&calf&&treatment)button.innerHTML=`<strong>${calf.tag}</strong><span>${treatment.diagnosis}</span><span>${treatment.treatment}</span>`;});document.querySelectorAll('.treatment-history-list').forEach(history=>[...history.children].reverse().forEach(entry=>history.appendChild(entry))); };
-document.addEventListener('pointerdown',event=>{const input=event.target.closest('input[type="number"]');spinnerPointer=Boolean(input&&event.clientX>input.getBoundingClientRect().right-32);});document.addEventListener('focusin',event=>{const input=event.target;if(!input.matches('input,textarea'))return;input.select();if(!input.readOnly&&!spinnerPointer&&(input.type==='number'||input.inputMode==='numeric'||input.inputMode==='decimal'))openKeypad(input,input.closest('label')?.textContent||'Zahl eingeben');spinnerPointer=false;});
+document.addEventListener('pointerdown',event=>{const input=event.target.closest('input[type="number"]');spinnerPointer=Boolean(input&&event.clientX>input.getBoundingClientRect().right-32);});document.addEventListener('focusin',event=>{const input=event.target;if(!input.matches('input,textarea'))return;input.select();if(!input.readOnly&&!spinnerPointer&&!input.closest('#planBody')&&(input.type==='number'||input.inputMode==='numeric'||input.inputMode==='decimal'))openKeypad(input,input.closest('label')?.textContent||'Zahl eingeben');spinnerPointer=false;});
 let lastLoadTime = Date.now();
 const AUTO_REFRESH_THRESHOLD = 10000;
 
