@@ -2,7 +2,9 @@
 
 ## What Works
 - **Stall & Calf Management:**
-  - Multi-stall overview (Stalls 1 to 5).
+  - Configurable stall list with required numeric stall numbers and optional uppercase compartment letters.
+  - Automatically sorted stall overview, detail navigation, calf assignments, and transfer choices.
+  - Safe removal: occupied stalls and the final remaining stall cannot be deleted.
   - Calf registration with ID tag (*Ohrmarke*) and birth date.
   - Age calculation (days, weeks, formatting).
   - Pen transfer (*Stallwechsel*).

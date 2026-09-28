@@ -4,7 +4,7 @@
 Kück's Kälbermanager is a touch- and tablet-optimized web application designed for agricultural operations and dairy farms to efficiently manage newborn and growing calves. It provides real-time oversight of calves across multiple stalls, calculates daily milk requirements based on a dynamic feeding plan (*Tränkeplan*), tracks medical treatments and pending follow-up tasks, records pen transfers (*Stallwechsel*), and synchronizes all data with a Google Sheet backend via Google Apps Script.
 
 ## Core Requirements & Goals
-- **Calf Management:** Register calves with ID tag number (*Ohrmarke*), birth date, and assigned pen (*Stall 1-5*). Track days alive and age in weeks/days.
+- **Calf Management:** Register calves with ID tag number (*Ohrmarke*), birth date, and an assigned stall from the configurable stall list. Stalls have a required positive number and an optional single uppercase compartment letter. Track days alive and age in weeks/days.
 - **Dynamic Feeding Plan (*Tränkeplan*):** Define age ranges (from/to days), milk quantities in litres per calf, and choose either whole milk or milk replacer for each row. For each stall, calculate the youngest calf's applicable quantity multiplied by the number of calves in that stall; sum stall quantities separately by milk type. Individual calf details retain their age-based plan quantity.
 - **Treatment & Task Tracking:** Document diagnoses, treatments, and status (repeat/completed). Automatically schedule follow-up tasks based on configurable delay hours (`taskDelayHours`).
 - **Pen Transfers (*Stallwechsel*):** Easily move calves between different stalls.

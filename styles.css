@@ -1,3 +1,25 @@
+.stable-settings-section { margin-top: 42px; }
+.stable-form { display: grid; grid-template-columns: minmax(150px, 1fr) minmax(120px, .8fr) auto; align-items: end; gap: 12px; padding: 18px; border-radius: 8px; background: var(--mint); }
+.stable-form label { display: grid; gap: 6px; color: var(--muted); font-size: 12px; font-weight: 700; }
+.stable-form label span { color: var(--muted); font-weight: 400; }
+.stable-form input { width: 100%; min-height: 54px; padding: 12px; border: 1px solid var(--line); border-radius: 7px; background: #fff; color: var(--ink); font-size: 17px; }
+.stable-form .button { min-height: 54px; white-space: nowrap; }
+.stable-management-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); gap: 12px; margin-top: 16px; }
+.stable-management-card { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--white); }
+.stable-management-icon { display: grid; flex: 0 0 54px; width: 54px; height: 54px; place-items: center; border-radius: 7px; background: var(--leaf); color: #fff; font: 700 16px 'Space Grotesk', sans-serif; }
+.stable-management-details { display: grid; flex: 1; min-width: 0; gap: 3px; }
+.stable-management-details strong { overflow-wrap: anywhere; color: var(--ink); font-size: 14px; }
+.stable-management-details span { color: var(--muted); font-size: 12px; }
+.stable-remove-button { flex: 0 0 48px; width: 48px; height: 48px; border: 1px solid #e0bdb3; border-radius: 7px; background: #fff; color: #a6533e; font-size: 25px; line-height: 1; }
+.stable-remove-button:hover { background: #fff1ec; }
+.stable-remove-confirm-text { margin: 16px 0; color: var(--muted); font-size: 14px; }
+.stable-remove-confirm-actions { display: flex; gap: 10px; margin-top: 22px; }
+.stable-remove-confirm-actions button { flex: 1; }
+@media (max-width: 600px) {
+  .stable-form { grid-template-columns: minmax(0, 1fr) minmax(0, .7fr); }
+  .stable-form .button { grid-column: 1 / -1; }
+  .stable-remove-confirm-actions { flex-direction: column; }
+}
 .modal-header-sticky {
   position: sticky;
   top: 0;
