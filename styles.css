@@ -223,6 +223,14 @@ button{min-height:52px}
 .head-total .milk-total span { display: block; color: #a9c8b8; font-size: 12px; }
 .head-total .milk-total strong { display: block; margin: 2px 0 0; font: 700 25px 'Space Grotesk'; white-space: nowrap; }
 .head-total small { margin: 0; white-space: nowrap; }
+.stable-card .treatment-badge { display: flex; align-items: center; min-height: 34px; }
+.stable-card .treatment-badge.is-empty { visibility: hidden; }
+@media (max-width: 520px) {
+  .stable-card .treatment-badge { min-height: 48px; }
+}
+@media (max-width: 360px) {
+  .stable-card .treatment-badge { min-height: 62px; }
+}
 .page-head .head-total { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: center; gap: 14px; }
 .page-head .summary-metric { min-width: 0; width: 100%; text-align: center; }
 .page-head .summary-metric > span { display: block; color: #a9c8b8; font-size: 13px; line-height: 1.25; }

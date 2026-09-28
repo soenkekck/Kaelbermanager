@@ -188,7 +188,10 @@ function renderOverview(){
     totalCalves+=cs.length;
     totalTasks+=tasks.length;
     const milkLabel=m.milkType==='milchersatz'?'Milchersatz':m.milkType==='vollmilch'?'Vollmilch':'Milchmenge';
-    grid.insertAdjacentHTML('beforeend',`<button class="stable-card" data-stable="${n}"><span class="stable-number">Stall ${String(n).padStart(2,'0')}</span><span class="stable-arrow">→</span><span class="calf-icon"></span><h3>Stall ${n}</h3><div class="stable-count"><strong>${cs.length}</strong><span>${cs.length===1?'Kalb':'Kälber'}</span></div><div class="stable-milk"><span>${milkLabel}</span><strong>${litres(m.amount)}</strong></div>${tasks.length?`<div class="treatment-badge">💉 ${tasks.length} Behandlung${tasks.length>1?'en':''} nötig</div>`:''}</button>`);
+    const treatmentBadge=tasks.length
+      ? `<div class="treatment-badge">💉 ${tasks.length} Behandlung${tasks.length>1?'en':''} nötig</div>`
+      : '<div class="treatment-badge is-empty" aria-hidden="true">&nbsp;</div>';
+    grid.insertAdjacentHTML('beforeend',`<button class="stable-card" data-stable="${n}"><span class="stable-number">Stall ${String(n).padStart(2,'0')}</span><span class="stable-arrow">→</span><span class="calf-icon"></span><h3>Stall ${n}</h3><div class="stable-count"><strong>${cs.length}</strong><span>${cs.length===1?'Kalb':'Kälber'}</span></div><div class="stable-milk"><span>${milkLabel}</span><strong>${litres(m.amount)}</strong></div>${treatmentBadge}</button>`);
   }
   document.getElementById('overallWholeMilk').textContent=litres(totalWholeMilk);
   document.getElementById('overallMilkReplacer').textContent=litres(totalMilkReplacer);
