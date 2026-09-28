@@ -258,7 +258,7 @@ function renderOverview(){
     const treatmentBadge=tasks.length
       ? `<div class="treatment-badge">💉 ${tasks.length} Behandlung${tasks.length>1?'en':''} nötig</div>`
       : '<div class="treatment-badge is-empty" aria-hidden="true">&nbsp;</div>';
-    grid.insertAdjacentHTML('beforeend',`<button class="stable-card" data-stable="${stable.id}"><span class="stable-number">${stableLabel(stable).toUpperCase()}</span><span class="stable-arrow">→</span><span class="calf-icon"></span><h3>${stableLabel(stable)}</h3><div class="stable-count"><strong>${cs.length}</strong><span>${cs.length===1?'Kalb':'Kälber'}</span></div><div class="stable-milk"><span>${milkLabel}</span><strong>${litres(m.amount)}</strong></div>${treatmentBadge}</button>`);
+    grid.insertAdjacentHTML('beforeend',`<button class="stable-card" data-stable="${stable.id}"><span class="stable-arrow">→</span><span class="calf-icon"></span><h3>${stableLabel(stable)}</h3><div class="stable-count"><strong>${cs.length}</strong><span>${cs.length===1?'Kalb':'Kälber'}</span></div><div class="stable-milk"><span>${milkLabel}</span><strong>${litres(m.amount)}</strong></div>${treatmentBadge}</button>`);
   });
   document.getElementById('overallWholeMilk').textContent=litres(totalWholeMilk);
   document.getElementById('overallMilkReplacer').textContent=litres(totalMilkReplacer);
@@ -322,7 +322,7 @@ function deleteTask(id, index) {
 }
 function close(id){document.getElementById(id).classList.add('hidden');}
 function openKeypad(input,title){keypadTarget=input;keypadFresh=true;input.select();document.getElementById('keypadTitle').textContent=title;document.getElementById('keypadDisplay').textContent=input.value||'0';document.getElementById('keypadKeys').innerHTML=['1','2','3','4','5','6','7','8','9','⌫','0',','].map(k=>`<button data-key="${k}">${k}</button>`).join('');document.querySelectorAll('[data-key]').forEach(b=>b.onclick=()=>{let v=document.getElementById('keypadDisplay').textContent;const key=b.dataset.key;if(key==='⌫'){v=v.slice(0,-1);keypadFresh=false;}else if(keypadFresh){v=key;keypadFresh=false;}else{v=v==='0'?key:v+key;}document.getElementById('keypadDisplay').textContent=v});document.getElementById('keypadModal').classList.remove('hidden');}
-function planText(r){return `Woche ${Math.ceil(r.ageFrom/7)}, Tag ${(r.ageFrom-1)%7+1} bis Woche ${Math.ceil(r.ageTo/7)}, Tag ${(r.ageTo-1)%7+1}`;}
+function planText(r){return `Woche ${Math.ceil(r.ageFrom/7)}, Tag ${(r.ageFrom-1)%7+1}<br>bis Woche ${Math.ceil(r.ageTo/7)}, Tag ${(r.ageTo-1)%7+1}`;}
 function renderPlan(){
   if (!data.plan) data.plan = structuredClone(defaultPlan);
   data.plan = normalizePlan(data.plan);
@@ -346,7 +346,7 @@ document.getElementById('addPlanButton').onclick=()=>{
   data.plan.push({amount:last?Number(last.amount):5,ageFrom,ageTo:ageFrom+6,milkType:'vollmilch'});
   renderPlan();
 };
-function renderPlanLive(){document.querySelectorAll('.range-output').forEach((x,i)=>x.textContent=planText(data.plan[i]));}
+function renderPlanLive(){document.querySelectorAll('.range-output').forEach((x,i)=>x.innerHTML=planText(data.plan[i]));}
 document.getElementById('currentDate').textContent=new Intl.DateTimeFormat('de-DE',{dateStyle:'full'}).format(now);
 document.getElementById('closeModal').onclick=()=>close('stableModal');
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>close(b.dataset.close));
@@ -531,29 +531,53 @@ function renderCalvesView() {
     });
 
     calvesBody.innerHTML = filteredCalves.map(calf => {
-      const treatmentsHtml = calf.treatments?.length > 0
-        ? `<div class="treatments-in-table">${
-            calf.treatments.map(t => `
-              <div>
-                <strong>${dateTime(t.date)}</strong>
-                <span>${t.diagnosis} – ${t.treatment}</span>
-              </div>
-            `).join('')
-          }</div>`
-        : '';
+      const calfStable = sortedStables.find(stable => stable.id === calf.stable);
+      const calfStableNumber = calfStable ? `${calfStable.number}${calfStable.compartment ? ` ${calfStable.compartment}` : ''}` : 'Unbekannt';
+      const calfAgeDays = days(calf.birthDate);
+      const calfAgeWeeks = Math.floor(calfAgeDays / 7);
+      const remainingAgeDays = calfAgeDays % 7;
+      const treatments = [...(Array.isArray(calf.treatments) ? calf.treatments : [])];
+      const treatmentDate = treatment => treatment.dateTime || (treatment.date ? `${treatment.date}T00:00` : '');
+      const treatmentTimestamp = treatment => {
+        const timestamp = Date.parse(treatmentDate(treatment));
+        return Number.isNaN(timestamp) ? 0 : timestamp;
+      };
+      treatments.sort((a, b) => treatmentTimestamp(b) - treatmentTimestamp(a));
+      const treatmentsHtml = treatments.length
+        ? `<div class="calf-treatments-panel"><strong>Behandlungshistorie</strong><div class="treatments-in-table">${
+            treatments.map(treatment => {
+              const recordedAt = treatmentDate(treatment);
+              const status = treatment.status === 'repeat' ? ' · Wiederholen' : treatment.status === 'completed' ? ' · Abgeschlossen' : '';
+              return `<div><strong>${recordedAt ? dateTime(recordedAt) : 'Datum unbekannt'}</strong><span>${treatment.diagnosis || ''} – ${treatment.treatment || ''}${status}</span></div>`;
+            }).join('')
+          }</div></div>`
+        : '<div class="calf-treatments-panel empty">Keine Behandlungen dokumentiert.</div>';
 
       return `
         <tr>
-          <td><strong>${calf.tag}</strong><small>ID ${calf.id}</small></td>
-          <td>${stableLabel(sortedStables.find(stable=>stable.id===calf.stable))}</td>
-          <td>${age(calf.birthDate)}</td>
-          <td>${treatmentsHtml}</td>
+          <td><strong>${calf.tag}</strong></td>
+          <td>${calfStableNumber}</td>
+          <td><span class="calf-list-age"><span>${calfAgeWeeks} ${calfAgeWeeks===1?'Woche':'Wochen'}</span><span>${remainingAgeDays} ${remainingAgeDays===1?'Tag':'Tage'}</span></span></td>
+          <td>${date(calf.birthDate)}</td>
+          <td><button class="calf-history-toggle" type="button" data-calf-history aria-expanded="false" aria-label="Behandlungshistorie anzeigen" title="Behandlungshistorie anzeigen" ${treatments.length ? '' : 'disabled'}><span>${treatments.length ? `Behandlungen (${treatments.length})` : 'Keine Behandlungen'}</span><span class="calf-history-chevron" aria-hidden="true">⌄</span></button></td>
         </tr>
+        <tr class="calf-treatment-details" hidden><td colspan="5">${treatmentsHtml}</td></tr>
       `;
     }).join('');
   }
 
   document.getElementById('calvesTable')?.addEventListener('click', (event) => {
+    const historyButton = event.target.closest('[data-calf-history]');
+    if (historyButton) {
+      const willExpand = historyButton.getAttribute('aria-expanded') !== 'true';
+      historyButton.closest('tr').nextElementSibling.hidden = !willExpand;
+      historyButton.setAttribute('aria-expanded', String(willExpand));
+      historyButton.setAttribute('aria-label', willExpand ? 'Behandlungshistorie einklappen' : 'Behandlungshistorie anzeigen');
+      historyButton.title = willExpand ? 'Behandlungshistorie einklappen' : 'Behandlungshistorie anzeigen';
+      historyButton.querySelector('.calf-history-chevron').textContent = willExpand ? '⌃' : '⌄';
+      return;
+    }
+
     const header = event.target.closest('th[data-sort]');
     if (!header) return;
 

@@ -184,7 +184,7 @@ button{min-height:52px}
   }
 
   #calvesTable th {
-    padding: 12px 16px;
+    padding: 10px 12px;
     text-align: left;
     font-size: 12px;
     font-weight: 700;
@@ -200,7 +200,7 @@ button{min-height:52px}
   }
 
   #calvesTable td {
-    padding: 14px 16px;
+    padding: 12px;
     border-bottom: 1px solid var(--line);
     font-size: 14px;
   }
@@ -236,6 +236,36 @@ button{min-height:52px}
     margin-bottom: 0;
   }
 
+  #calvesTable { min-width: 700px; }
+  #calvesTable .calf-history-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    min-width: 164px;
+    padding: 8px 10px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    background: var(--white);
+    color: var(--ink);
+    font-size: 12px;
+    font-weight: 700;
+  }
+  #calvesTable .calf-history-toggle[aria-expanded="true"] { border-color: var(--leaf); background: var(--mint); }
+  #calvesTable .calf-history-toggle:disabled { color: var(--muted); cursor: default; }
+  #calvesTable .calf-history-chevron { font-size: 17px; line-height: 1; }
+  #calvesTable .calf-treatment-details[hidden] { display: none; }
+  #calvesTable .calf-treatment-details > td { padding: 0 16px 14px; background: var(--white); }
+  #calvesTable .calf-list-age { display: grid; gap: 2px; }
+  #calvesTable .calf-list-age > span { white-space: nowrap; }
+  .calf-treatments-panel { padding: 12px 14px; border-left: 3px solid var(--orange); background: var(--paper); }
+  .calf-treatments-panel > strong { display: block; margin-bottom: 8px; font-size: 12px; }
+  .calf-treatments-panel.empty { color: var(--muted); font-size: 12px; }
+  .calf-treatments-panel .treatments-in-table { margin: 0; }
+  .calf-treatments-panel .treatments-in-table > div { display: grid; grid-template-columns: minmax(140px, 190px) minmax(0, 1fr); gap: 12px; padding: 8px 0; }
+  .calf-treatments-panel .treatments-in-table > div > strong { color: var(--ink); }
+  .calf-treatments-panel .treatments-in-table > div > span { color: var(--muted); }
+
 .head-total {
   display: grid;
   grid-template-columns: auto repeat(2, minmax(110px, 1fr)) auto auto;
@@ -267,6 +297,16 @@ button{min-height:52px}
   .page-head { padding-left: 16px; padding-right: 16px; }
 }
 .plan-table-wrap table { min-width: 760px; }
+#planView .plan-table-wrap table { min-width: 640px; table-layout: fixed; }
+#planView .plan-table-wrap th:nth-child(1), #planView .plan-table-wrap td:nth-child(1) { width: 78px; }
+#planView .plan-table-wrap th:nth-child(2), #planView .plan-table-wrap td:nth-child(2) { width: 220px; }
+#planView .plan-table-wrap th:nth-child(3), #planView .plan-table-wrap td:nth-child(3),
+#planView .plan-table-wrap th:nth-child(4), #planView .plan-table-wrap td:nth-child(4) { width: 64px; }
+#planView .plan-table-wrap th:nth-child(6), #planView .plan-table-wrap td:nth-child(6) { width: 60px; }
+#planView .remove-plan { display: inline-flex; align-items: center; justify-content: center; width: 40px; min-width: 40px; height: 40px; min-height: 40px; padding: 0; border: 1px solid #e0bdb3; border-radius: 6px; background: #fff; color: #a6533e; font-size: 23px; line-height: 1; }
+#planView .remove-plan:hover { background: #fff1ec; }
+#planView [data-plan="ageFrom"], #planView [data-plan="ageTo"] { width: 100%; min-width: 0; padding-right: 3px; padding-left: 3px; text-align: center; }
+#planView .range-output { max-width: none; white-space: normal; overflow: visible; text-overflow: clip; }
 .milk-type-switch { display: flex; gap: 5px; min-width: max-content; margin: 0; padding: 0; border: 0; }
 .milk-type-switch label { position: relative; cursor: pointer; }
 .milk-type-switch input { position: absolute; width: 1px; height: 1px; opacity: 0; }
