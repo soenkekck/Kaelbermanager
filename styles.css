@@ -223,6 +223,18 @@ button{min-height:52px}
 .head-total .milk-total span { display: block; color: #a9c8b8; font-size: 12px; }
 .head-total .milk-total strong { display: block; margin: 2px 0 0; font: 700 25px 'Space Grotesk'; white-space: nowrap; }
 .head-total small { margin: 0; white-space: nowrap; }
+.page-head .head-total { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: center; gap: 14px; }
+.page-head .summary-metric { min-width: 0; width: 100%; text-align: center; }
+.page-head .summary-metric > span { display: block; color: #a9c8b8; font-size: 13px; line-height: 1.25; }
+.page-head .summary-metric > strong { display: block; margin-top: 4px; color: #fff; font: 700 clamp(22px, 3.2vw, 30px) 'Space Grotesk'; line-height: 1.1; white-space: nowrap; }
+@media (max-width: 520px) {
+  .page-head .head-total { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .page-head .summary-metric > span { font-size: 14px; }
+  .page-head .summary-metric > strong { font-size: 24px; }
+}
+@media (min-width: 521px) and (max-width: 1200px) {
+  .page-head { padding-left: 16px; padding-right: 16px; }
+}
 .plan-table-wrap table { min-width: 760px; }
 .milk-type-switch { display: flex; gap: 5px; min-width: max-content; margin: 0; padding: 0; border: 0; }
 .milk-type-switch label { position: relative; cursor: pointer; }

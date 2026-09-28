@@ -192,8 +192,8 @@ function renderOverview(){
   }
   document.getElementById('overallWholeMilk').textContent=litres(totalWholeMilk);
   document.getElementById('overallMilkReplacer').textContent=litres(totalMilkReplacer);
-  document.getElementById('overallCalves').textContent=`${totalCalves} Kälber`;
-  document.getElementById('overallTreatments').textContent=`${totalTasks} Behandlungen`;
+  document.getElementById('overallCalves').textContent=String(totalCalves);
+  document.getElementById('overallTreatments').textContent=String(totalTasks);
 }
 function tasksFor(stable){const cutoff=Date.now()-Number(data.taskDelayHours)*3600000;return data.calves.filter(c=>c.stable===stable).flatMap(c=>(c.treatments||[]).map((t,i)=>({calf:c,treatment:t,index:i}))).filter(x=>(x.treatment.status==='repeat'||x.treatment.repeat)&&!x.treatment.taskDismissed&&(!x.treatment.createdAt||Date.parse(x.treatment.createdAt)<=cutoff));}
 function renderModal(){
@@ -379,7 +379,7 @@ loadRemote().then(ok => {
   if (!ok) openSettingsModal(true);
 });
 const originalRenderOverview = renderOverview;
-renderOverview = function(){ originalRenderOverview(); let treatmentTotal=0; for(let stable=1;stable<=5;stable++) treatmentTotal += tasksFor(stable).length; document.getElementById('overallCalves').textContent=`${data.calves.length} Kälber`; document.getElementById('overallTreatments').textContent=`${treatmentTotal} Behandlungen`; };
+renderOverview = function(){ originalRenderOverview(); let treatmentTotal=0; for(let stable=1;stable<=5;stable++) treatmentTotal += tasksFor(stable).length; document.getElementById('overallCalves').textContent=String(data.calves.length); document.getElementById('overallTreatments').textContent=String(treatmentTotal); };
 const originalRenderModal = renderModal;
 renderModal = function(){ originalRenderModal(); document.querySelectorAll('.task-item').forEach(item=>{const button=item.querySelector('.task-button');const calf=data.calves.find(c=>c.id===Number(button.dataset.taskId));const treatment=calf?.treatments?.[Number(button.dataset.taskIndex)];if(button&&calf&&treatment)button.innerHTML=`<strong>${calf.tag}</strong><span>${treatment.treatment}</span><span>${treatment.diagnosis}</span>`;});document.querySelectorAll('.treatments').forEach(history=>[...history.children].reverse().forEach(entry=>history.appendChild(entry))); };
 document.addEventListener('pointerdown',event=>{const input=event.target.closest('input[type="number"]');spinnerPointer=Boolean(input&&event.clientX>input.getBoundingClientRect().right-32);});document.addEventListener('focusin',event=>{const input=event.target;if(!input.matches('input,textarea'))return;input.select();if(!input.readOnly&&!spinnerPointer&&(input.type==='number'||input.inputMode==='numeric'||input.inputMode==='decimal'))openKeypad(input,input.closest('label')?.textContent||'Zahl eingeben');spinnerPointer=false;});
