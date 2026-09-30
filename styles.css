@@ -295,6 +295,9 @@ button{min-height:52px}
 .head-total small { margin: 0; white-space: nowrap; }
 .stable-card .treatment-badge { display: flex; align-items: center; min-height: 34px; }
 .stable-card .treatment-badge.is-empty { visibility: hidden; }
+.treatment-icon { display: inline-flex; flex: 0 0 20px; width: 20px; height: 20px; vertical-align: middle; }
+.treatment-icon svg { display: block; width: 100%; height: 100%; }
+.calf-actions .treatment-icon { display: grid; flex-basis: 23px; width: 23px; height: 23px; place-items: center; margin-inline: auto; color: var(--ink); }
 @media (max-width: 520px) {
   .stable-card .treatment-badge { min-height: 48px; }
 }
