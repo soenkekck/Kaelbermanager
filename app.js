@@ -498,6 +498,7 @@ document.getElementById('saveSettingsButton').onclick = async () => {
     openSettingsModal(true);
   }
   renderOverview();
+  if (ok) startGuidedTour();
 };
 document.getElementById('saveTasksSettingsButton').onclick = async () => {
   await mutateAndSave(() => {
@@ -654,3 +655,213 @@ const originalOpenTask = openTask; openTask = function(id,index){originalOpenTas
 document.getElementById('treatmentModal').addEventListener('click',event=>{if(event.target.matches('[name="diagnosis"],[name="treatment"]'))renderSuggestions();});
 document.getElementById('treatmentForm').addEventListener('submit',event=>{const form=new FormData(event.currentTarget);data.suggestions ||= {diagnosis:[],treatment:[]};['diagnosis','treatment'].forEach(field=>{const value=String(form.get(field)||'').trim();if(value&&!data.suggestions[field].includes(value))data.suggestions[field].push(value);});save();});
 document.addEventListener('input',event=>{if(!event.target.matches('[data-plan="ageTo"]'))return;const index=Number(event.target.dataset.index);data.plan[index].ageTo=Number(event.target.value);if(data.plan[index+1]){data.plan[index+1].ageFrom=Number(event.target.value)+1;const next=document.querySelector(`[data-plan="ageFrom"][data-index="${index+1}"]`);if(next)next.value=Number(event.target.value)+1;}renderPlanLive();});
+
+const guidedTourSteps = [
+  { view: 'stable', target: '.page-head', eyebrow: 'ÜBERBLICK', title: 'Der heutige Stand', text: 'Hier siehst du Milchmengen, Kälber und offene Behandlungen auf einen Blick.' },
+  { view: 'stable', target: '.tabs', eyebrow: 'NAVIGATION', title: 'Die Bereiche der App', text: 'Ställe zeigen die Stallkacheln, Kälber öffnet die Gesamtliste, Tränkeplan legt Mengen fest und Einstellungen verwalten Ställe und Aufgaben.' },
+  { view: 'stable', getTarget: () => document.querySelector('.stable-card'), eyebrow: 'STALLKACHEL', title: 'Stallwerte auf einen Blick', text: 'Die Kachel zeigt Kälberzahl und Milchmenge. Ein Behandlungshinweis markiert offene Aufgaben. Tippe die Kachel für die Stallübersicht an.' },
+  {
+    view: 'stable',
+    openStable: true,
+    preferStableWithCalves: true,
+    eyebrow: 'STALLÜBERSICHT',
+    title: 'Kennzahlen und offene Aufgaben',
+    target: '#stableModal .modal-stats',
+    text: 'Oben stehen Kälberzahl und tägliche Milchmenge. Offene, fällige Behandlungen erscheinen direkt darunter als Aufgaben.'
+  },
+  {
+    view: 'stable',
+    openStable: true,
+    preferStableWithCalves: true,
+    eyebrow: 'KALB',
+    title: 'Ein Kalb im Stall',
+    getTarget: () => document.querySelector('#calfList .calf-row') || document.querySelector('#calfForm'),
+    getText: () => data.calves.some(calf => calf.stable === selectedStable)
+      ? 'Jede Zeile fasst ein Kalb zusammen: Ohrmarke, Alter und die aktuell geplante Milchmenge.'
+      : 'In diesem Stall ist noch kein Kalb. Nach dem Hinzufügen erscheint jedes Kalb hier mit Alter und Milchmenge.'
+  },
+  {
+    view: 'stable',
+    openStable: true,
+    preferStableWithCalves: true,
+    eyebrow: 'KALBAKTIONEN',
+    title: 'Die Symbole am Kalb',
+    getTarget: () => document.querySelector('#calfList .calf-actions') || document.querySelector('#calfForm'),
+    getText: () => data.calves.some(calf => calf.stable === selectedStable)
+      ? 'Herz-Plus: Behandlung hinzufügen. Pfeile: Stall wechseln. X: Kalb ausstallen. i: Geburts- und Einstalldatum anzeigen.'
+      : 'Sobald ein Kalb eingestallt ist, erscheinen hier seine Behandlungs-, Umstall-, Ausstall- und Datumsaktionen.'
+  },
+  {
+    view: 'stable',
+    openStable: true,
+    eyebrow: 'KALB HINZUFÜGEN',
+    title: 'Ein Kalb am Stall anmelden',
+    target: '#calfForm',
+    text: 'Ohrmarke und Geburtsdatum eintragen und „Kalb hinzufügen“ wählen. Das Kalb wird diesem Stall zugeordnet.'
+  },
+  {
+    view: 'calves',
+    getTarget: () => document.querySelector('.calves-table-wrap') || document.querySelector('#calvesView .section-label'),
+    eyebrow: 'KÄLBERLISTE',
+    title: 'Alle Kälber wiederfinden',
+    text: 'Die Gesamtliste lässt sich über Ohrmarke durchsuchen und über Stall oder Alter sortieren. Vorhandene Behandlungshistorien öffnest du in der letzten Spalte.'
+  },
+  {
+    view: 'plan',
+    getTarget: () => document.querySelector('#planBody tr:first-child') || document.querySelector('#planView .plan-table-wrap'),
+    eyebrow: 'TRÄNKEPLAN',
+    title: 'Menge nach Alter',
+    text: 'Hier legst du Menge, Milchart und Altersbereiche fest. Die Werte werden für die Milchberechnung der Ställe verwendet.'
+  },
+  {
+    view: 'settings',
+    target: '#taskSettingsSection',
+    eyebrow: 'AUFGABEN',
+    title: 'Wann eine Aufgabe erscheint',
+    getText: () => `Behandlungen mit dem Status „Wiederholen“ erscheinen nach ${data.taskDelayHours} Stunden als offene Aufgabe im Stallpopup. Abgeschlossene Behandlungen werden nicht erneut angezeigt.`
+  },
+  {
+    view: 'settings',
+    target: '#stableForm',
+    eyebrow: 'STALLVERWALTUNG',
+    title: 'Einen Stall anlegen',
+    text: 'Stallnummer eingeben, optional einen Buchstaben ergänzen und „Stall hinzufügen“ wählen.'
+  },
+  {
+    view: 'settings',
+    getTarget: () => document.querySelector('#stableManagementGrid .stable-management-card'),
+    eyebrow: 'STALLVERWALTUNG',
+    title: 'Einen Stall löschen',
+    text: 'Mit X entfernst du einen leeren Stall. Ein Stall mit Kälbern kann erst gelöscht werden, wenn alle Kälber umgestallt sind.'
+  },
+  {
+    view: 'settings',
+    getTarget: () => document.querySelector('#settingsView .stable-milk-mode'),
+    eyebrow: 'MILCHMENGE',
+    title: 'Berechnung je Stall',
+    text: 'Jüngstes Kalb multipliziert dessen Tränkeplanmenge mit der Kälberzahl. Individual summiert die Menge und Milchart jedes einzelnen Kalbs.'
+  }
+];
+let guidedTourIndex = -1;
+let guidedTourRestoreState = null;
+let guidedTourTarget = null;
+
+function updateGuidedTourSpotlight() {
+  if (!guidedTourTarget || !guidedTourRestoreState) return;
+  const bounds = guidedTourTarget.getBoundingClientRect();
+  const top = Math.max(0, Math.min(window.innerHeight, bounds.top - 6));
+  const bottom = Math.max(top, Math.min(window.innerHeight, bounds.bottom + 6));
+  const left = Math.max(0, Math.min(window.innerWidth, bounds.left - 6));
+  const right = Math.max(left, Math.min(window.innerWidth, bounds.right + 6));
+  const setRect = (element, x, y, width, height) => {
+    element.style.left = `${x}px`;
+    element.style.top = `${y}px`;
+    element.style.width = `${width}px`;
+    element.style.height = `${height}px`;
+  };
+
+  setRect(document.querySelector('[data-tour-shade="top"]'), 0, 0, window.innerWidth, top);
+  setRect(document.querySelector('[data-tour-shade="right"]'), right, top, window.innerWidth - right, bottom - top);
+  setRect(document.querySelector('[data-tour-shade="bottom"]'), 0, bottom, window.innerWidth, window.innerHeight - bottom);
+  setRect(document.querySelector('[data-tour-shade="left"]'), 0, top, left, bottom - top);
+  setRect(document.getElementById('tourSpotlight'), left, top, right - left, bottom - top);
+
+  const card = document.querySelector('.guided-tour-card');
+  const cardHeight = card.getBoundingClientRect().height;
+  const topCardBottom = 14 + cardHeight;
+  const bottomCardTop = window.innerHeight - 14 - cardHeight;
+  const topOverlap = Math.max(0, Math.min(topCardBottom, bottom) - Math.max(14, top));
+  const bottomOverlap = Math.max(0, Math.min(window.innerHeight - 14, bottom) - Math.max(bottomCardTop, top));
+  card.classList.toggle('at-top', topOverlap < bottomOverlap);
+}
+
+function setGuidedTourView(view) {
+  document.querySelectorAll('.tab').forEach(tab => tab.classList.toggle('active', tab.dataset.view === view));
+  document.querySelectorAll('.view').forEach(section => section.classList.toggle('hidden', section.id !== `${view}View`));
+  if (view === 'plan') renderPlan();
+  if (view === 'calves') renderCalvesView();
+  if (view === 'settings') document.getElementById('taskDelayHours').value = data.taskDelayHours;
+}
+
+function showGuidedTourStep(index) {
+  guidedTourIndex = index;
+  const step = guidedTourSteps[index];
+  const stableModal = document.getElementById('stableModal');
+  setGuidedTourView(step.view);
+
+  if (step.openStable) {
+    const selectedStableRecord = data.stables.find(item => item.id === guidedTourRestoreState.selectedStable);
+    const stableWithCalves = step.preferStableWithCalves && data.stables.find(item => data.calves.some(calf => calf.stable === item.id));
+    const stable = stableWithCalves || selectedStableRecord || sortStables(data.stables)[0];
+    if (stable) selectedStable = stable.id;
+    renderModal();
+    stableModal.classList.remove('hidden');
+  } else {
+    stableModal.classList.add('hidden');
+  }
+
+  const target = step.getTarget ? step.getTarget() : document.querySelector(step.target);
+  document.getElementById('tourStepCount').textContent = `${index + 1} / ${guidedTourSteps.length}`;
+  document.getElementById('tourProgressBar').style.width = `${((index + 1) / guidedTourSteps.length) * 100}%`;
+  document.getElementById('tourEyebrow').textContent = step.eyebrow;
+  document.getElementById('tourTitle').textContent = step.title;
+  document.getElementById('tourText').textContent = step.getText ? step.getText() : step.text;
+  document.getElementById('tourBack').disabled = index === 0;
+  document.getElementById('tourNext').textContent = index === guidedTourSteps.length - 1 ? 'Fertig' : 'Weiter';
+
+  if (target) {
+    guidedTourTarget = target;
+    target.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'nearest' });
+    updateGuidedTourSpotlight();
+    requestAnimationFrame(updateGuidedTourSpotlight);
+  } else {
+    guidedTourTarget = null;
+  }
+}
+
+function startGuidedTour() {
+  const stableModal = document.getElementById('stableModal');
+  guidedTourRestoreState = {
+    view: document.querySelector('.tab.active')?.dataset.view || 'stable',
+    stableModalOpen: !stableModal.classList.contains('hidden'),
+    selectedStable,
+    scrollY: window.scrollY
+  };
+  document.getElementById('guidedTour').classList.remove('hidden');
+  showGuidedTourStep(0);
+  document.getElementById('tourNext').focus();
+}
+
+function endGuidedTour() {
+  if (!guidedTourRestoreState) return;
+  const restoreState = guidedTourRestoreState;
+  document.getElementById('guidedTour').classList.add('hidden');
+  setGuidedTourView(restoreState.view);
+  selectedStable = restoreState.selectedStable;
+  if (restoreState.stableModalOpen && data.stables.some(stable => stable.id === selectedStable)) {
+    renderModal();
+    document.getElementById('stableModal').classList.remove('hidden');
+  } else {
+    document.getElementById('stableModal').classList.add('hidden');
+  }
+  window.scrollTo({ top: restoreState.scrollY });
+  guidedTourRestoreState = null;
+  guidedTourIndex = -1;
+  guidedTourTarget = null;
+  document.getElementById('startGuidedTour').focus();
+}
+
+document.getElementById('startGuidedTour').addEventListener('click', startGuidedTour);
+document.getElementById('tourExit').addEventListener('click', endGuidedTour);
+document.getElementById('tourBack').addEventListener('click', () => {
+  if (guidedTourIndex > 0) showGuidedTourStep(guidedTourIndex - 1);
+});
+document.getElementById('tourNext').addEventListener('click', () => {
+  if (guidedTourIndex === guidedTourSteps.length - 1) endGuidedTour();
+  else showGuidedTourStep(guidedTourIndex + 1);
+});
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && guidedTourRestoreState) endGuidedTour();
+});
+window.addEventListener('resize', updateGuidedTourSpotlight);
+document.addEventListener('scroll', updateGuidedTourSpotlight, true);

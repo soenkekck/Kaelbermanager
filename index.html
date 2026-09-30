@@ -65,12 +65,7 @@
       <div class="settings-panel"><p class="panel-intro">Lege Menge und Milchart abhängig vom Alter fest.</p><div class="plan-table-wrap"><table><thead><tr><th>L / KALB</th><th>Milchart</th><th>Von (Tag)</th><th>Bis (Tag)</th><th>Zeitraum</th><th></th></tr></thead><tbody id="planBody"></tbody></table></div><button id="savePlanButton" class="button primary save-button">Tränkeplan speichern</button></div>
     </section>
     <section id="settingsView" class="view hidden">
-      <div class="section-label"><div><p class="eyebrow">AUFGABEN</p><h2>Aufgaben-Einstellungen</h2></div></div>
-      <div class="settings-panel">
-        <p class="panel-intro">Lege fest, nach wie vielen Stunden offene Behandlungen wiederholt werden sollen.</p>
-        <label class="setting-field">Aufgabe anzeigen nach (Stunden)<input id="taskDelayHours" type="number" inputmode="decimal" min="0" step="0.5"></label>
-        <button id="saveTasksSettingsButton" class="button primary save-button">Aufgaben-Einstellung speichern</button>
-      </div>
+      <div class="tour-launch-row"><div><p class="eyebrow">EINSTIEG</p><h2>Geführte Tour</h2></div><button id="startGuidedTour" class="button primary" type="button">Tour starten</button></div>
       <div class="stable-settings-section">
         <div class="section-label"><div><p class="eyebrow">VERWALTUNG</p><h2>Stallliste</h2></div><span id="stableManagementCount"></span></div>
         <form id="stableForm" class="stable-form">
@@ -80,8 +75,33 @@
         </form>
         <div id="stableManagementGrid" class="stable-management-grid" aria-live="polite"></div>
       </div>
+      <div class="stable-settings-section" id="taskSettingsSection">
+        <div class="section-label"><div><p class="eyebrow">AUFGABEN</p><h2>Aufgaben-Einstellungen</h2></div></div>
+        <div class="settings-panel">
+          <p class="panel-intro">Lege fest, nach wie vielen Stunden offene Behandlungen wiederholt werden sollen.</p>
+          <label class="setting-field">Aufgabe anzeigen nach (Stunden)<input id="taskDelayHours" type="number" inputmode="decimal" min="0" step="0.5"></label>
+          <button id="saveTasksSettingsButton" class="button primary save-button">Aufgaben-Einstellung speichern</button>
+        </div>
+      </div>
     </section>
   </main>
+
+  <div id="guidedTour" class="guided-tour hidden" role="dialog" aria-modal="true" aria-labelledby="tourTitle" aria-describedby="tourText">
+    <div class="guided-tour-scrim" aria-hidden="true">
+      <div class="guided-tour-shade" data-tour-shade="top"></div>
+      <div class="guided-tour-shade" data-tour-shade="right"></div>
+      <div class="guided-tour-shade" data-tour-shade="bottom"></div>
+      <div class="guided-tour-shade" data-tour-shade="left"></div>
+    </div>
+    <div id="tourSpotlight" class="guided-tour-spotlight" aria-hidden="true"></div>
+    <section class="guided-tour-card">
+      <div class="guided-tour-topline"><span id="tourStepCount" aria-live="polite"></span><div class="guided-tour-progress"><span id="tourProgressBar"></span></div></div>
+      <p id="tourEyebrow" class="eyebrow"></p>
+      <h2 id="tourTitle"></h2>
+      <p id="tourText"></p>
+      <div class="guided-tour-actions"><button id="tourExit" class="button" type="button">Beenden</button><div><button id="tourBack" class="button" type="button">Zurück</button><button id="tourNext" class="button primary" type="button">Weiter</button></div></div>
+    </section>
+  </div>
 
   <div id="stableModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
     <div class="modal has-sticky">
