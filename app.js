@@ -6,7 +6,7 @@ const defaultPlan = [
   { amount: 4, ageFrom: 57, ageTo: 63 }, { amount: 3, ageFrom: 64, ageTo: 70 },
   { amount: 2.5, ageFrom: 71, ageTo: 77 }, { amount: 2, ageFrom: 78, ageTo: 84 }
 ];
-const createDefaultStables = () => Array.from({ length: 5 }, (_, index) => ({ id: `stable-${index + 1}`, number: index + 1, compartment: '' }));
+const createDefaultStables = () => Array.from({ length: 5 }, (_, index) => ({ id: `stable-${index + 1}`, number: index + 1, compartment: '', milkMode: 'youngest' }));
 const stableIdFor = (number, compartment = '') => `stable-${number}${compartment}`;
 function uniqueStableId(number, compartment, stables) {
   const baseId=stableIdFor(number,compartment);
@@ -20,7 +20,7 @@ const stableLabel = stable => stable ? `Stall ${stable.number}${stable.compartme
 let config = { ...defaultConfig, ...(JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') || {}) };
 let data = { calves: [], stables: createDefaultStables(), plan: structuredClone(defaultPlan), corrections: {}, taskDelayHours: 3 };
 data.corrections ||= {}; data.taskDelayHours ??= 3; data.suggestions ||= { diagnosis: [], treatment: [] }; data.plan = normalizePlan(data.plan); data.plan.forEach((r,i) => { r.ageFrom ??= defaultPlan[i]?.ageFrom ?? 1; r.ageTo ??= defaultPlan[i]?.ageTo ?? 9999; }); data.calves.forEach(c => { c.stableSince ||= c.birthDate; c.treatments ||= []; c.treatments.forEach(t => { if (t.diagnosis && !data.suggestions.diagnosis.includes(t.diagnosis)) data.suggestions.diagnosis.push(t.diagnosis); if (t.treatment && !data.suggestions.treatment.includes(t.treatment)) data.suggestions.treatment.push(t.treatment); }); });
-let selectedStable = 'stable-1', pendingRemoveStableId = null, selectedCalf = null, selectedTreatment = null, keypadTarget = null, keypadFresh = false, spinnerPointer = false, isSettingsLocked = false; const now = new Date();
+let selectedStable = 'stable-1', pendingRemoveStableId = null, selectedCalf = null, selectedTreatment = null, isSettingsLocked = false; const now = new Date();
 const key = d => d.toISOString().slice(0,10); const dateTimeKey = d => `${key(d)}T${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 const date = v => { const [y,m,d] = v.split('-'); return `${d.padStart(2,'0')}.${m.padStart(2,'0')}.${y}`; }; const dateTime = v => `${date(v.split('T')[0])} ${v.split('T')[1].slice(0,5)}`;
 const days = birth => Math.max(0, Math.floor((new Date(`${key(now)}T12:00:00`) - new Date(`${birth}T12:00:00`)) / 86400000) + 1);
@@ -38,7 +38,7 @@ function ensureValidData(d) {
     let id = baseId;
     let suffix = 2;
     while (stables.some(item => item.id === id)) id = `${baseId}-${suffix++}`;
-    stables.push({ id, number, compartment });
+    stables.push({ id, number, compartment, milkMode: stable.milkMode === 'individual' ? 'individual' : 'youngest' });
   });
   if (!stables.length) stables.push(...createDefaultStables());
 
@@ -52,7 +52,7 @@ function ensureValidData(d) {
         stable = stables.find(item => item.number === number && item.compartment === compartment);
         if (!stable && Number.isSafeInteger(number) && number > 0) {
           const id = uniqueStableId(number, compartment, stables);
-          stable = { id, number, compartment };
+          stable = { id, number, compartment, milkMode: 'youngest' };
           stables.push(stable);
         }
       }
@@ -87,14 +87,33 @@ function milk(calf) {
 }
 
 function stableMilk(stable) {
+  const stableRecord = data.stables.find(item => item.id === stable);
   const calves = data.calves.filter(calf => calf.stable === stable);
-  if (!calves.length) return { milkType: null, amount: 0 };
+  if (!calves.length) return { milkType: null, amount: 0, wholeMilk: 0, milkReplacer: 0 };
+
+  if (stableRecord?.milkMode === 'individual') {
+    const totals = { vollmilch: 0, milchersatz: 0 };
+    calves.forEach(calf => {
+      const row = planRowFor(calf);
+      if (row) totals[row.milkType] += Number(row.amount) || 0;
+    });
+    const milkTypes = Object.entries(totals).filter(([, amount]) => amount > 0).map(([type]) => type);
+    return {
+      milkType: milkTypes.length > 1 ? 'mixed' : milkTypes[0] || null,
+      amount: totals.vollmilch + totals.milchersatz,
+      wholeMilk: totals.vollmilch,
+      milkReplacer: totals.milchersatz
+    };
+  }
 
   const youngest = calves.reduce((current, calf) => days(calf.birthDate) < days(current.birthDate) ? calf : current);
   const row = planRowFor(youngest);
+  const amount = (row ? Number(row.amount) : 0) * calves.length;
   return {
     milkType: row?.milkType || null,
-    amount: (row ? Number(row.amount) : 0) * calves.length
+    amount,
+    wholeMilk: row?.milkType === 'vollmilch' ? amount : 0,
+    milkReplacer: row?.milkType === 'milchersatz' ? amount : 0
   };
 }
 function updateConnectionStatus(success){ const led = document.getElementById('connectionLED'); if (led) { if (success) { led.classList.remove('disconnected'); led.classList.add('connected'); } else { led.classList.remove('connected'); led.classList.add('disconnected'); } } }
@@ -223,9 +242,16 @@ function renderStableList(){
   document.getElementById('stableManagementCount').textContent=`${stables.length} ${stables.length===1?'Stall':'Ställe'}`;
   grid.innerHTML=stables.map(stable=>{
     const calfCount=data.calves.filter(calf=>calf.stable===stable.id).length;
-    return `<article class="stable-management-card"><div class="stable-management-icon" aria-hidden="true">${stable.number}${stable.compartment ? ` ${stable.compartment}` : ''}</div><div class="stable-management-details"><strong>${stableLabel(stable)}</strong><span>${calfCount} ${calfCount===1?'Kalb':'Kälber'}</span></div><button class="stable-remove-button" type="button" data-remove-stable="${stable.id}" aria-label="${stableLabel(stable)} entfernen" title="Stall entfernen">×</button></article>`;
+    const milkMode=stable.milkMode==='individual'?'individual':'youngest';
+    return `<article class="stable-management-card"><div class="stable-management-icon" aria-hidden="true">${stable.number}${stable.compartment ? ` ${stable.compartment}` : ''}</div><div class="stable-management-details"><strong>${stableLabel(stable)}</strong><span>${calfCount} ${calfCount===1?'Kalb':'Kälber'}</span></div><button class="stable-remove-button" type="button" data-remove-stable="${stable.id}" aria-label="${stableLabel(stable)} entfernen" title="Stall entfernen">×</button><fieldset class="stable-milk-mode"><legend>Milchmenge</legend><div class="stable-milk-mode-options"><label><input type="radio" name="milkMode-${stable.id}" data-stable-milk-mode="${stable.id}" value="youngest" ${milkMode==='youngest'?'checked':''}><span>Jüngstes Kalb</span></label><label><input type="radio" name="milkMode-${stable.id}" data-stable-milk-mode="${stable.id}" value="individual" ${milkMode==='individual'?'checked':''}><span>Individual</span></label></div></fieldset></article>`;
   }).join('');
   grid.querySelectorAll('[data-remove-stable]').forEach(button=>button.onclick=()=>requestRemoveStable(button.dataset.removeStable));
+  grid.querySelectorAll('[data-stable-milk-mode]').forEach(input=>input.onchange=async()=>{
+    const stable=data.stables.find(item=>item.id===input.dataset.stableMilkMode);
+    if(!stable)return;
+    const ok=await mutateAndSave(()=>{stable.milkMode=input.value;});
+    if(ok)renderOverview();
+  });
 }
 function requestRemoveStable(stableId){
   const stable=data.stables.find(item=>item.id===stableId);
@@ -250,15 +276,18 @@ function renderOverview(){
         const cs=data.calves.filter(c=>c.stable===stable.id),
           m=stableMilk(stable.id),
           tasks=tasksFor(stable.id);
-        if (m.milkType === 'milchersatz') totalMilkReplacer += m.amount;
-        else totalWholeMilk += m.amount;
+        totalWholeMilk += m.wholeMilk;
+        totalMilkReplacer += m.milkReplacer;
     totalCalves+=cs.length;
     totalTasks+=tasks.length;
     const milkLabel=m.milkType==='milchersatz'?'Milchersatz':m.milkType==='vollmilch'?'Vollmilch':'Milchmenge';
+    const milkMarkup=m.milkType==='mixed'
+      ? `<div class="stable-milk mixed"><span><span>Vollmilch</span><strong>${litres(m.wholeMilk)}</strong></span><span><span>Milchersatz</span><strong>${litres(m.milkReplacer)}</strong></span></div>`
+      : `<div class="stable-milk"><span>${milkLabel}</span><strong>${litres(m.amount)}</strong></div>`;
     const treatmentBadge=tasks.length
       ? `<div class="treatment-badge">💉 ${tasks.length} Behandlung${tasks.length>1?'en':''} nötig</div>`
       : '<div class="treatment-badge is-empty" aria-hidden="true">&nbsp;</div>';
-    grid.insertAdjacentHTML('beforeend',`<button class="stable-card" data-stable="${stable.id}"><span class="stable-arrow">→</span><span class="calf-icon"></span><h3>${stableLabel(stable)}</h3><div class="stable-count"><strong>${cs.length}</strong><span>${cs.length===1?'Kalb':'Kälber'}</span></div><div class="stable-milk"><span>${milkLabel}</span><strong>${litres(m.amount)}</strong></div>${treatmentBadge}</button>`);
+    grid.insertAdjacentHTML('beforeend',`<button class="stable-card" data-stable="${stable.id}"><span class="stable-arrow">→</span><span class="calf-icon"></span><h3>${stableLabel(stable)}</h3><div class="stable-count"><strong>${cs.length}</strong><span>${cs.length===1?'Kalb':'Kälber'}</span></div>${milkMarkup}${treatmentBadge}</button>`);
   });
   document.getElementById('overallWholeMilk').textContent=litres(totalWholeMilk);
   document.getElementById('overallMilkReplacer').textContent=litres(totalMilkReplacer);
@@ -273,8 +302,15 @@ function renderModal(){
     stableQuantity=stableMilk(selectedStable);
   document.getElementById('modalTitle').textContent=stableLabel(data.stables.find(stable=>stable.id===selectedStable));
   document.getElementById('modalCalves').textContent=cs.length;
-  document.getElementById('modalMilk').textContent=litres(stableQuantity.amount);
-  document.getElementById('modalMilkType').textContent=stableQuantity.milkType==='milchersatz'?'Milchersatz':stableQuantity.milkType==='vollmilch'?'Vollmilch':'Milchmenge';
+  const modalMilk=document.getElementById('modalMilk');
+  const isMixedMilk=stableQuantity.milkType==='mixed';
+  modalMilk.classList.toggle('mixed',isMixedMilk);
+  modalMilk.innerHTML=isMixedMilk
+    ? `<span class="modal-milk-item"><span class="modal-milk-amount">${litres(stableQuantity.wholeMilk)}</span><span class="modal-milk-caption">Vollmilch</span></span><span class="modal-milk-item"><span class="modal-milk-amount">${litres(stableQuantity.milkReplacer)}</span><span class="modal-milk-caption">Milchersatz</span></span>`
+    : litres(stableQuantity.amount);
+  const modalMilkType=document.getElementById('modalMilkType');
+  modalMilkType.hidden=isMixedMilk;
+  if(!isMixedMilk)modalMilkType.textContent=stableQuantity.milkType==='milchersatz'?'Milchersatz':stableQuantity.milkType==='vollmilch'?'Vollmilch':'Milchmenge';
   
   document.getElementById('modalTasks').innerHTML=tasks.map(x=>`<div class="task-item"><button class="task-button" data-task-id="${x.calf.id}" data-task-index="${x.index}"><span class="calf-tag">${x.calf.tag}</span><strong>${x.treatment.diagnosis}</strong><span>${x.treatment.treatment}</span></button><button class="task-done" data-task-id="${x.calf.id}" data-task-index="${x.index}">✓</button><button class="task-delete" data-task-id="${x.calf.id}" data-task-index="${x.index}">🗑</button></div>`).join('');
   document.getElementById('calfList').innerHTML=cs.map(c=>{
@@ -321,15 +357,12 @@ function deleteTask(id, index) {
   modal.classList.remove('hidden');
 }
 function close(id){document.getElementById(id).classList.add('hidden');}
-function openKeypad(input,title){keypadTarget=input;keypadFresh=true;input.select();document.getElementById('keypadTitle').textContent=title;document.getElementById('keypadDisplay').textContent=input.value||'0';document.getElementById('keypadKeys').innerHTML=['1','2','3','4','5','6','7','8','9','⌫','0',','].map(k=>`<button data-key="${k}">${k}</button>`).join('');document.querySelectorAll('[data-key]').forEach(b=>b.onclick=()=>{let v=document.getElementById('keypadDisplay').textContent;const key=b.dataset.key;if(key==='⌫'){v=v.slice(0,-1);keypadFresh=false;}else if(keypadFresh){v=key;keypadFresh=false;}else{v=v==='0'?key:v+key;}document.getElementById('keypadDisplay').textContent=v});document.getElementById('keypadModal').classList.remove('hidden');}
 function planText(r){return `Woche ${Math.ceil(r.ageFrom/7)}, Tag ${(r.ageFrom-1)%7+1}<br>bis Woche ${Math.ceil(r.ageTo/7)}, Tag ${(r.ageTo-1)%7+1}`;}
 function renderPlan(){
   if (!data.plan) data.plan = structuredClone(defaultPlan);
   data.plan = normalizePlan(data.plan);
-  document.getElementById('planBody').innerHTML=data.plan.map((r,i)=>`<tr><td><input class="plan-amount" data-plan="amount" data-index="${i}" type="number" inputmode="none" min="0" step="0.5" value="${r.amount}"></td><td><fieldset class="milk-type-switch"><legend class="visually-hidden">Milchart</legend><label><input type="radio" name="milkType-${i}" data-plan="milkType" data-index="${i}" value="vollmilch" ${r.milkType==='vollmilch'?'checked':''}><span>Vollmilch</span></label><label><input type="radio" name="milkType-${i}" data-plan="milkType" data-index="${i}" value="milchersatz" ${r.milkType==='milchersatz'?'checked':''}><span>Milchersatz</span></label></fieldset></td><td><input data-plan="ageFrom" data-index="${i}" type="number" inputmode="none" min="${i ? Number(data.plan[i-1].ageFrom)+1 : 1}" value="${r.ageFrom}"></td><td><input data-plan="ageTo" data-index="${i}" type="number" inputmode="none" min="1" value="${r.ageTo}"></td><td><output class="range-output">${planText(r)}</output></td><td><button class="remove-plan" data-remove-plan="${i}">×</button></td></tr>`).join('');
-  document.querySelectorAll('.plan-amount').forEach(x=>x.onfocus=()=>openKeypad(x,'L / KALB'));
+  document.getElementById('planBody').innerHTML=data.plan.map((r,i)=>`<tr><td><input class="plan-amount" data-plan="amount" data-index="${i}" type="number" inputmode="decimal" min="0" step="0.5" value="${r.amount}"></td><td><fieldset class="milk-type-switch"><legend class="visually-hidden">Milchart</legend><label><input type="radio" name="milkType-${i}" data-plan="milkType" data-index="${i}" value="vollmilch" ${r.milkType==='vollmilch'?'checked':''}><span>Vollmilch</span></label><label><input type="radio" name="milkType-${i}" data-plan="milkType" data-index="${i}" value="milchersatz" ${r.milkType==='milchersatz'?'checked':''}><span>Milchersatz</span></label></fieldset></td><td><input data-plan="ageFrom" data-index="${i}" type="number" inputmode="numeric" min="${i ? Number(data.plan[i-1].ageFrom)+1 : 1}" value="${r.ageFrom}"></td><td><input data-plan="ageTo" data-index="${i}" type="number" inputmode="numeric" min="1" value="${r.ageTo}"></td><td><output class="range-output">${planText(r)}</output></td><td><button class="remove-plan" data-remove-plan="${i}">×</button></td></tr>`).join('');
   document.querySelectorAll('[data-plan="ageFrom"]').forEach(input=>{
-    input.onfocus=()=>openKeypad(input,'VON (TAG)');
     input.oninput=()=>{
       const index=Number(input.dataset.index);
       const ageFrom=Number(input.value);
@@ -342,7 +375,6 @@ function renderPlan(){
       renderPlanLive();
     };
   });
-  document.querySelectorAll('[data-plan="ageTo"]').forEach(input=>input.onfocus=()=>openKeypad(input,'BIS (TAG)'));
   document.querySelectorAll('[data-plan="ageTo"]').forEach(x=>x.oninput=()=>{
     const i=Number(x.dataset.index);
     if(data.plan[i+1]) {
@@ -388,7 +420,7 @@ document.getElementById('stableForm').onsubmit=async event=>{
   const compartment=String(form.get('stableCompartment')||'').trim().toUpperCase();
   if(!Number.isSafeInteger(number)||number<1||!/^[A-Z]?$/.test(compartment)){showToast('Bitte eine gültige Stallnummer und höchstens einen Großbuchstaben eingeben.');return;}
   if(data.stables.some(stable=>stable.number===number&&stable.compartment===compartment)){showToast('Dieser Stall ist bereits in der Stallliste.');return;}
-  const stable={id:uniqueStableId(number,compartment,data.stables),number,compartment};
+  const stable={id:uniqueStableId(number,compartment,data.stables),number,compartment,milkMode:'youngest'};
   const ok=await mutateAndSave(()=>data.stables.push(stable));
   if(ok){stableForm.reset();renderOverview();}
 };
@@ -406,7 +438,6 @@ document.getElementById('confirmRemoveStable').onclick=async()=>{
   close('removeStableModal');
 };
 document.querySelector('[name="birthDate"]').value = key(now);
-document.querySelector('[name="tag"]').onfocus=e=>openKeypad(e.target,'Ohrmarkennummer');
 document.getElementById('treatmentForm').onsubmit=async e=>{
   e.preventDefault();
   const f=new FormData(e.target),entry={dateTime:f.get('dateTime'),diagnosis:f.get('diagnosis'),treatment:f.get('treatment'),status:f.get('status'),createdAt:new Date().toISOString()};
@@ -424,14 +455,6 @@ document.getElementById('treatmentForm').onsubmit=async e=>{
   renderOverview();
   renderModal();
 };
-document.getElementById('keypadDone').onclick=()=>{
-  if(keypadTarget){
-    keypadTarget.value=document.getElementById('keypadDisplay').textContent.replace(',','.');
-    keypadTarget.dispatchEvent(new Event('input',{bubbles:true}));
-    keypadTarget.dispatchEvent(new Event('change',{bubbles:true}));
-  }
-  close('keypadModal');
-};
 document.getElementById('resetDataButton').onclick=async()=>{
   await loadRemote();
   renderOverview();
@@ -448,7 +471,7 @@ function reloadStored(){
     });
   }
 }
-document.getElementById('stableModal').addEventListener('click',event=>{if(event.target===event.currentTarget)close('stableModal')});document.getElementById('treatmentModal').addEventListener('click',event=>{if(event.target===event.currentTarget)close('treatmentModal')});document.getElementById('moveModal').addEventListener('click',event=>{if(event.target===event.currentTarget)close('moveModal')});document.getElementById('keypadModal').addEventListener('click',event=>{if(event.target===event.currentTarget)close('keypadModal')});
+document.getElementById('stableModal').addEventListener('click',event=>{if(event.target===event.currentTarget)close('stableModal')});document.getElementById('treatmentModal').addEventListener('click',event=>{if(event.target===event.currentTarget)close('treatmentModal')});document.getElementById('moveModal').addEventListener('click',event=>{if(event.target===event.currentTarget)close('moveModal')});
 document.getElementById('stableGrid').addEventListener('click',event=>{const card=event.target.closest('.stable-card');if(card)openStable(card.dataset.stable);});
 
 document.querySelectorAll('[data-plan="ageTo"]').forEach(input=>input.addEventListener('input',()=>{const index=Number(input.dataset.index);const next=document.querySelector(`[data-plan="ageFrom"][data-index="${index+1}"]`);if(next){next.value=Number(input.value)+1;data.plan[index+1].ageFrom=Number(input.value)+1;}renderPlanLive?.();}));
@@ -493,7 +516,6 @@ const originalRenderOverview = renderOverview;
 renderOverview = function(){ originalRenderOverview(); let treatmentTotal=0; sortStables(data.stables).forEach(stable=>treatmentTotal += tasksFor(stable.id).length); document.getElementById('overallCalves').textContent=String(data.calves.length); document.getElementById('overallTreatments').textContent=String(treatmentTotal); };
 const originalRenderModal = renderModal;
 renderModal = function(){ originalRenderModal(); document.querySelectorAll('.task-item').forEach(item=>{const button=item.querySelector('.task-button');const calf=data.calves.find(c=>c.id===Number(button.dataset.taskId));const treatment=calf?.treatments?.[Number(button.dataset.taskIndex)];if(button&&calf&&treatment)button.innerHTML=`<strong>${calf.tag}</strong><span>${treatment.diagnosis}</span><span>${treatment.treatment}</span>`;});document.querySelectorAll('.treatment-history-list').forEach(history=>[...history.children].reverse().forEach(entry=>history.appendChild(entry))); };
-document.addEventListener('pointerdown',event=>{const input=event.target.closest('input[type="number"]');spinnerPointer=Boolean(input&&event.clientX>input.getBoundingClientRect().right-32);});document.addEventListener('focusin',event=>{const input=event.target;if(!input.matches('input,textarea'))return;input.select();if(!input.readOnly&&!spinnerPointer&&!input.closest('#planBody')&&(input.type==='number'||input.inputMode==='numeric'||input.inputMode==='decimal'))openKeypad(input,input.closest('label')?.textContent||'Zahl eingeben');spinnerPointer=false;});
 let lastLoadTime = Date.now();
 const AUTO_REFRESH_THRESHOLD = 10000;
 

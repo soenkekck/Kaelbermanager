@@ -68,13 +68,13 @@
       <div class="section-label"><div><p class="eyebrow">AUFGABEN</p><h2>Aufgaben-Einstellungen</h2></div></div>
       <div class="settings-panel">
         <p class="panel-intro">Lege fest, nach wie vielen Stunden offene Behandlungen wiederholt werden sollen.</p>
-        <label class="setting-field">Aufgabe anzeigen nach (Stunden)<input id="taskDelayHours" type="number" inputmode="none" min="0" step="0.5"></label>
+        <label class="setting-field">Aufgabe anzeigen nach (Stunden)<input id="taskDelayHours" type="number" inputmode="decimal" min="0" step="0.5"></label>
         <button id="saveTasksSettingsButton" class="button primary save-button">Aufgaben-Einstellung speichern</button>
       </div>
       <div class="stable-settings-section">
         <div class="section-label"><div><p class="eyebrow">VERWALTUNG</p><h2>Stallliste</h2></div><span id="stableManagementCount"></span></div>
         <form id="stableForm" class="stable-form">
-          <label>Stallnummer<input required name="stableNumber" type="number" min="1" step="1" inputmode="none" placeholder="z. B. 6"></label>
+          <label>Stallnummer<input required name="stableNumber" type="number" inputmode="numeric" min="1" step="1" placeholder="z. B. 6"></label>
           <label>Abteil <span>(optional)</span><input name="stableCompartment" type="text" maxlength="1" pattern="[A-Za-z]?" autocapitalize="characters" placeholder="A–Z"></label>
           <button class="button primary" type="submit">Stall hinzufügen</button>
         </form>
@@ -101,7 +101,7 @@
         <form id="calfForm" class="calf-form">
           <div class="form-title">Kalb hinzufügen</div>
           <div class="form-row">
-            <label>Ohrmarkennummer<input required name="tag" inputmode="none" data-keypad="true" placeholder="z. B. 276 1234 5678" /></label>
+            <label>Ohrmarkennummer<input required name="tag" inputmode="numeric" placeholder="z. B. 276 1234 5678" /></label>
             <label>Geburtsdatum<input required name="birthDate" type="date" /></label>
           </div>
           <button class="button primary large-action" type="submit">Kalb hinzufügen</button>
@@ -114,7 +114,6 @@
   <div id="removeCalfModal" class="modal-backdrop hidden" role="dialog" aria-modal="true"><div class="modal small-modal"><button class="close-button" data-close="removeCalfModal" aria-label="Fenster schließen">×</button><p class="eyebrow">AUSSTALLEN</p><h2>Kalb wirklich ausstallen?</h2><p style="margin:16px 0; color:var(--muted); font-size:14px;">Möchtest du dieses Kalb wirklich ausstallen?</p><div style="display:flex; gap:12px; margin-top:24px;"><button id="confirmRemoveCalf" class="button primary large-action" style="flex:1; background:#a6533e;">Ja, ausstallen</button><button class="button large-action" data-close="removeCalfModal" style="flex:1; background:#fff; border:1px solid var(--line); color:var(--ink);">Abbrechen</button></div></div></div>
   <div id="deleteTaskModal" class="modal-backdrop hidden" role="dialog" aria-modal="true"><div class="modal small-modal"><button class="close-button" data-close="deleteTaskModal" aria-label="Fenster schließen">×</button><p class="eyebrow">AUFGABE</p><h2>Aufgabe löschen?</h2><p style="margin:16px 0; color:var(--muted); font-size:14px;">Die Behandlungshistorie bleibt erhalten.</p><div style="display:flex; gap:12px; margin-top:24px;"><button id="confirmDeleteTask" class="button primary large-action" style="flex:1; background:#a6533e;">Ja, löschen</button><button class="button large-action" data-close="deleteTaskModal" style="flex:1; background:#fff; border:1px solid var(--line); color:var(--ink);">Abbrechen</button></div></div></div>
   <div id="removeStableModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="removeStableTitle"><div class="modal small-modal"><button class="close-button" data-close="removeStableModal" aria-label="Fenster schließen">×</button><p class="eyebrow">STALLLISTE</p><h2 id="removeStableTitle">Stall entfernen?</h2><p id="removeStableText" class="stable-remove-confirm-text"></p><div class="stable-remove-confirm-actions"><button id="confirmRemoveStable" class="button primary large-action">Stall entfernen</button><button class="button large-action" data-close="removeStableModal">Abbrechen</button></div></div></div>
-  <div id="keypadModal" class="modal-backdrop hidden" role="dialog" aria-modal="true"><div class="modal keypad-modal"><button class="close-button" data-close="keypadModal" aria-label="Fenster schließen">×</button><p class="eyebrow">EINGABE</p><h2 id="keypadTitle">Ziffern eingeben</h2><div id="keypadDisplay" class="keypad-display"></div><div id="keypadKeys" class="keypad-keys"></div><button id="keypadDone" class="button primary large-action">Übernehmen</button></div></div>
   <div id="settingsModal" class="modal-backdrop hidden" role="dialog" aria-modal="true">
     <div class="modal small-modal">
       <button class="close-button" id="closeSettingsModal" aria-label="Fenster schließen">×</button>

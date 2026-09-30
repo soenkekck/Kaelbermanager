@@ -5,7 +5,16 @@
 .stable-form input { width: 100%; min-height: 54px; padding: 12px; border: 1px solid var(--line); border-radius: 7px; background: #fff; color: var(--ink); font-size: 17px; }
 .stable-form .button { min-height: 54px; white-space: nowrap; }
 .stable-management-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); gap: 12px; margin-top: 16px; }
-.stable-management-card { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--white); }
+.stable-management-card { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--white); }
+.stable-milk-mode { display: grid; flex: 1 0 100%; min-width: 0; gap: 6px; margin: 0; padding: 10px 0 0; border: 0; border-top: 1px solid var(--line); }
+.stable-milk-mode legend { padding: 0; color: var(--muted); font-size: 12px; font-weight: 700; }
+.stable-milk-mode-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); overflow: hidden; border: 1px solid var(--line); border-radius: 7px; }
+.stable-milk-mode-options label { position: relative; min-width: 0; cursor: pointer; }
+.stable-milk-mode-options input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.stable-milk-mode-options label span { display: grid; min-height: 40px; place-items: center; padding: 0 5px; background: #fff; color: var(--ink); font-size: 12px; font-weight: 600; white-space: nowrap; }
+.stable-milk-mode-options label + label span { border-left: 1px solid var(--line); }
+.stable-milk-mode-options input:checked + span { background: var(--leaf); color: #fff; }
+.stable-milk-mode-options input:focus-visible + span { outline: 2px solid var(--orange); outline-offset: -2px; }
 .stable-management-icon { display: grid; flex: 0 0 54px; width: 54px; height: 54px; place-items: center; border-radius: 7px; background: var(--leaf); color: #fff; font: 700 16px 'Space Grotesk', sans-serif; }
 .stable-management-details { display: grid; flex: 1; min-width: 0; gap: 3px; }
 .stable-management-details strong { overflow-wrap: anywhere; color: var(--ink); font-size: 14px; }
@@ -15,6 +24,14 @@
 .stable-remove-confirm-text { margin: 16px 0; color: var(--muted); font-size: 14px; }
 .stable-remove-confirm-actions { display: flex; gap: 10px; margin-top: 22px; }
 .stable-remove-confirm-actions button { flex: 1; }
+.stable-milk.mixed { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.stable-milk.mixed > span { display: grid; align-content: start; gap: 2px; min-width: 0; }
+.stable-milk.mixed > span > span { font-size: 11px; white-space: nowrap; }
+.stable-milk.mixed strong { color: var(--ink); font-size: 22px; white-space: nowrap; }
+.modal-stats #modalMilk.mixed { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.modal-stats .modal-milk-item { display: grid; min-width: 0; gap: 2px; }
+.modal-stats .modal-milk-amount { color: var(--ink); font-size: 28px; white-space: nowrap; }
+.modal-stats .modal-milk-caption { color: var(--muted); font-size: 12px; font-weight: 400; white-space: nowrap; }
 @media (max-width: 600px) {
   .stable-form { grid-template-columns: minmax(0, 1fr) minmax(0, .7fr); }
   .stable-form .button { grid-column: 1 / -1; }
@@ -292,6 +309,40 @@ button{min-height:52px}
   .page-head .head-total { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .page-head .summary-metric > span { font-size: 14px; }
   .page-head .summary-metric > strong { font-size: 24px; }
+}
+@media (max-width: 520px) {
+  .tabs {
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0;
+  }
+  .tab {
+    min-width: 0;
+    padding-right: 0;
+    padding-left: 0;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+}
+@media (max-width: 340px) {
+  .tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .tab {
+    font-size: 14px;
+  }
+}
+.stable-card h3 {
+  max-width: calc(100% - 46px);
+}
+.stable-card > .calf-icon {
+  top: 48px;
+  right: 12px;
+}
+.stable-card .stable-arrow {
+  top: 12px;
+  right: 17px;
 }
 @media (min-width: 521px) and (max-width: 1200px) {
   .page-head { padding-left: 16px; padding-right: 16px; }
