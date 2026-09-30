@@ -27,6 +27,7 @@
 .tour-launch-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 32px 0 26px; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
 .tour-launch-row .eyebrow { margin-bottom: 5px; }
 .tour-launch-row h2 { font-size: 20px; }
+.app-version { margin: 20px 0 0; color: var(--muted); font-size: 11px; text-align: right; }
 .guided-tour { position: fixed; inset: 0; z-index: 5000; isolation: isolate; }
 .guided-tour-scrim { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
 .guided-tour-shade { position: fixed; z-index: 0; background: rgba(16, 47, 41, .78); pointer-events: auto; }
