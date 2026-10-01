@@ -408,6 +408,7 @@ document.getElementById('calfForm').onsubmit=async e=>{
   });
   if(ok) {
     e.target.reset();
+    e.target.elements.tag.value = '';
     document.querySelector('[name="birthDate"]').value = key(now);
   }
   renderOverview();
@@ -474,6 +475,10 @@ function reloadStored(){
 }
 document.getElementById('stableModal').addEventListener('click',event=>{if(event.target===event.currentTarget)close('stableModal')});document.getElementById('treatmentModal').addEventListener('click',event=>{if(event.target===event.currentTarget)close('treatmentModal')});document.getElementById('moveModal').addEventListener('click',event=>{if(event.target===event.currentTarget)close('moveModal')});
 document.getElementById('stableGrid').addEventListener('click',event=>{const card=event.target.closest('.stable-card');if(card)openStable(card.dataset.stable);});
+document.addEventListener('focusin',event=>{
+  const input=event.target;
+  if(input.matches('input:not([type]),input[type="text"],input[type="search"],input[type="tel"],input[type="url"],input[type="email"],input[type="password"]')&&input.value)input.select();
+});
 
 document.querySelectorAll('[data-plan="ageTo"]').forEach(input=>input.addEventListener('input',()=>{const index=Number(input.dataset.index);const next=document.querySelector(`[data-plan="ageFrom"][data-index="${index+1}"]`);if(next){next.value=Number(input.value)+1;data.plan[index+1].ageFrom=Number(input.value)+1;}renderPlanLive?.();}));
 document.addEventListener('input',event=>{if(!event.target.matches('[data-plan="ageTo"]'))return;const index=Number(event.target.dataset.index);const next=document.querySelector(`[data-plan="ageFrom"][data-index="${index+1}"]`);if(next){next.value=Number(event.target.value)+1;data.plan[index+1].ageFrom=Number(event.target.value)+1;const row=next.closest('tr');row.querySelector('.range-output').textContent=planText(data.plan[index+1]);}});

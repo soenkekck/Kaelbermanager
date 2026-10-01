@@ -22,8 +22,7 @@ function doPost(e) {
     if (!body.data.calves) return json_({ error: 'Corrupt data received' });
     
     const sheet = getDataSheet_(String(body.sheetId));
-    sheet.getRange(DATA_CELL).setValue(JSON.stringify(body.data));
-    sheet.getRange('B1').setValue(new Date().toISOString());
+    sheet.getRange('A1:B1').setValues([[JSON.stringify(body.data), new Date().toISOString()]]);
     return json_({ ok: true });
   } catch (error) {
     return json_({ error: error.message });
