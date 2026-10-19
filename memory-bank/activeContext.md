@@ -1,11 +1,15 @@
 # Active Context: Kück's Kälbermanager
 
 ## Current Focus
+- Stallverwaltung nach Hauptstallnummern mit umschaltbarem Großstall-/Dualboxen-Layout (A/B/C), automatischer Kälberverteilung und eigener Tränkeberechnung je aktiver Einheit.
 - Refined the responsive calf rows in the stall detail modal for portrait tablets and narrow phones.
 - Calf age is hidden from compact rows and shown with birth and stall-entry dates in the info-button disclosure.
 - The info button returns to a neutral border when collapsed, including when a touch device retains its hover state.
 
 ## Recent Changes
+- Reworked stall settings to add and remove main stall numbers, toggle between one large stall and three dual boxes, and retain per-unit milk calculation modes.
+- Added legacy data normalization for existing compartment letters, chronological balanced redistribution, and calf/treatment preservation when layouts change.
+- Updated the guided tour and responsive stall settings for the main-stall layout switch.
 - Added a graphical stall list to settings with number/compartment validation, duplicate prevention, and protection for occupied/final stalls.
 - Updated calf stall display, transfer selection, detail navigation, and Google Sheets data normalization to use the shared sorted stall list.
 - Fixed immediate stall-list refresh by retaining the form reference across the async save; removed leading zero padding from stall number tiles.

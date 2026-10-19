@@ -1,12 +1,23 @@
 .stable-settings-section { margin-top: 42px; }
-.stable-form { display: grid; grid-template-columns: minmax(150px, 1fr) minmax(120px, .8fr) auto; align-items: end; gap: 12px; padding: 18px; border-radius: 8px; background: var(--mint); }
+.stable-form { display: grid; grid-template-columns: minmax(150px, 1fr) auto; align-items: end; gap: 12px; padding: 18px; border-radius: 8px; background: var(--mint); }
 .stable-form label { display: grid; gap: 6px; color: var(--muted); font-size: 12px; font-weight: 700; }
 .stable-form label span { color: var(--muted); font-weight: 400; }
 .stable-form input { width: 100%; min-height: 54px; padding: 12px; border: 1px solid var(--line); border-radius: 7px; background: #fff; color: var(--ink); font-size: 17px; }
 .stable-form .button { min-height: 54px; white-space: nowrap; }
-.stable-management-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); gap: 12px; margin-top: 16px; }
-.stable-management-card { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--white); }
-.stable-milk-mode { display: grid; flex: 1 0 100%; min-width: 0; gap: 6px; margin: 0; padding: 10px 0 0; border: 0; border-top: 1px solid var(--line); }
+.stable-management-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 12px; margin-top: 16px; }
+.stable-management-card { display: grid; grid-template-columns: 54px minmax(0, 1fr) 48px; align-items: center; gap: 12px; min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--white); }
+.stable-unit-list { grid-column: 1 / -1; min-width: 0; }
+.stable-unit-settings { display: grid; gap: 6px; padding-top: 10px; border-top: 1px solid var(--line); }
+.stable-unit-settings + .stable-unit-settings { margin-top: 10px; }
+.stable-unit-settings > strong { color: var(--ink); font-size: 13px; }
+.stable-layout-switch { position: relative; grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; width: fit-content; min-height: 42px; color: var(--muted); font-size: 12px; font-weight: 700; cursor: pointer; }
+.stable-layout-switch input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+.stable-layout-slider { position: relative; width: 54px; height: 30px; flex: 0 0 54px; border: 1px solid var(--line); border-radius: 18px; background: #e8ece8; transition: background-color .18s ease; }
+.stable-layout-slider::before { position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(16,47,41,.24); content: ''; transition: transform .18s ease; }
+.stable-layout-switch input:checked + .stable-layout-slider { background: var(--leaf); }
+.stable-layout-switch input:checked + .stable-layout-slider::before { transform: translateX(24px); }
+.stable-layout-switch input:focus-visible + .stable-layout-slider { outline: 2px solid var(--orange); outline-offset: 2px; }
+.stable-milk-mode { display: grid; min-width: 0; gap: 6px; margin: 0; padding: 0; border: 0; }
 .stable-milk-mode legend { padding: 0; color: var(--muted); font-size: 12px; font-weight: 700; }
 .stable-milk-mode-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); overflow: hidden; border: 1px solid var(--line); border-radius: 7px; }
 .stable-milk-mode-options label { position: relative; min-width: 0; cursor: pointer; }
@@ -53,7 +64,7 @@
 .modal-stats .modal-milk-amount { color: var(--ink); font-size: 28px; white-space: nowrap; }
 .modal-stats .modal-milk-caption { color: var(--muted); font-size: 12px; font-weight: 400; white-space: nowrap; }
 @media (max-width: 600px) {
-  .stable-form { grid-template-columns: minmax(0, 1fr) minmax(0, .7fr); }
+  .stable-form { grid-template-columns: minmax(0, 1fr); }
   .stable-form .button { grid-column: 1 / -1; }
   .stable-remove-confirm-actions { flex-direction: column; }
   .tour-launch-row { align-items: flex-end; }

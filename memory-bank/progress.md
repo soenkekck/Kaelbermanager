@@ -2,9 +2,11 @@
 
 ## What Works
 - **Stall & Calf Management:**
-  - Configurable stall list with required numeric stall numbers and optional uppercase compartment letters.
-  - Automatically sorted stall overview, detail navigation, calf assignments, and transfer choices.
-  - Safe removal: occupied stalls and the final remaining stall cannot be deleted.
+  - Stall settings are grouped by main stall number; each main stall switches between one large stall and three dual boxes (A/B/C).
+  - Switching to dual boxes redistributes calves into chronological, balanced groups; switching to a large stall combines them again without losing calf or treatment data.
+  - Each active stall unit has its own milk calculation mode; layout changes set large stalls to youngest-calf mode and dual boxes to individual mode.
+  - Automatically sorted active stall overview, detail navigation, calf assignments, and transfer choices.
+  - Safe removal: occupied main stalls and the final remaining main stall cannot be deleted.
   - Calf registration with ID tag (*Ohrmarke*) and birth date.
   - Age calculation (days, weeks, formatting).
   - Pen transfer (*Stallwechsel*).

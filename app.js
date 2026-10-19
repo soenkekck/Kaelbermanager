@@ -8,6 +8,7 @@ const defaultPlan = [
   { amount: 2.5, ageFrom: 71, ageTo: 77 }, { amount: 2, ageFrom: 78, ageTo: 84 }
 ];
 const createDefaultStables = () => Array.from({ length: 5 }, (_, index) => ({ id: `stable-${index + 1}`, number: index + 1, compartment: '', milkMode: 'youngest' }));
+const createDefaultStableLayouts = () => Object.fromEntries(Array.from({ length: 5 }, (_, index) => [index + 1, 'large']));
 const stableIdFor = (number, compartment = '') => `stable-${number}${compartment}`;
 function uniqueStableId(number, compartment, stables) {
   const baseId=stableIdFor(number,compartment);
@@ -17,9 +18,22 @@ function uniqueStableId(number, compartment, stables) {
   return id;
 }
 const sortStables = stables => [...stables].sort((a, b) => a.number - b.number || a.compartment.localeCompare(b.compartment));
+const stableNumbers = () => [...new Set(data.stables.map(stable => stable.number))].sort((a, b) => a - b);
+const stableUnits = number => sortStables(data.stables.filter(stable => stable.number === number));
+const stableLayout = number => data.stableLayouts?.[number] || (stableUnits(number).some(stable => stable.compartment) ? 'dual' : 'large');
 const stableLabel = stable => stable ? `Stall ${stable.number}${stable.compartment ? ` ${stable.compartment}` : ''}` : 'Stall unbekannt';
+function distributeCalves(calves, units){
+  const ordered=[...calves].sort((a,b)=>String(a.stableSince||a.birthDate||'').localeCompare(String(b.stableSince||b.birthDate||''))||String(a.tag||'').localeCompare(String(b.tag||''))||String(a.id||'').localeCompare(String(b.id||'')));
+  const baseSize=Math.floor(ordered.length/units.length),remainder=ordered.length%units.length;
+  let offset=0;
+  units.forEach((unit,index)=>{
+    const size=baseSize+(index<remainder?1:0);
+    ordered.slice(offset,offset+size).forEach(calf=>{calf.stable=unit.id;});
+    offset+=size;
+  });
+}
 let config = { ...defaultConfig, ...(JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') || {}) };
-let data = { calves: [], stables: createDefaultStables(), plan: structuredClone(defaultPlan), corrections: {}, taskDelayHours: 3 };
+let data = { calves: [], stables: createDefaultStables(), stableLayouts: createDefaultStableLayouts(), plan: structuredClone(defaultPlan), corrections: {}, taskDelayHours: 3 };
 data.corrections ||= {}; data.taskDelayHours ??= 3; data.suggestions ||= { diagnosis: [], treatment: [] }; data.plan = normalizePlan(data.plan); data.plan.forEach((r,i) => { r.ageFrom ??= defaultPlan[i]?.ageFrom ?? 1; r.ageTo ??= defaultPlan[i]?.ageTo ?? 9999; }); data.calves.forEach(c => { c.stableSince ||= c.birthDate; c.treatments ||= []; c.treatments.forEach(t => { if (t.diagnosis && !data.suggestions.diagnosis.includes(t.diagnosis)) data.suggestions.diagnosis.push(t.diagnosis); if (t.treatment && !data.suggestions.treatment.includes(t.treatment)) data.suggestions.treatment.push(t.treatment); }); });
 let selectedStable = 'stable-1', pendingRemoveStableId = null, selectedCalf = null, selectedTreatment = null, isSettingsLocked = false; const now = new Date();
 const key = d => d.toISOString().slice(0,10); const dateTimeKey = d => `${key(d)}T${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
@@ -27,42 +41,79 @@ const date = v => { const [y,m,d] = v.split('-'); return `${d.padStart(2,'0')}.$
 const days = birth => Math.max(0, Math.floor((new Date(`${key(now)}T12:00:00`) - new Date(`${birth}T12:00:00`)) / 86400000) + 1);
 const age = birth => { const d=days(birth), w=Math.floor(d/7), r=d%7; return `${w} ${w===1?'Woche':'Wochen'}, ${r} ${r===1?'Tag':'Tage'}`; }; const litres = n => `${String(n).replace('.',',')} l`;
 function ensureValidData(d) {
-  const stables = [];
+  const legacyStables = [];
   const sourceStables = Array.isArray(d.stables) && d.stables.length ? d.stables : createDefaultStables();
   sourceStables.forEach(stable => {
     if (!stable || typeof stable !== 'object') return;
     const number = Number(stable.number);
     const compartment = String(stable.compartment || '').trim().toUpperCase();
-    if (!Number.isSafeInteger(number) || number < 1 || !/^[A-Z]?$/.test(compartment)) return;
-    if (stables.some(item => item.number === number && item.compartment === compartment)) return;
+    if (!Number.isSafeInteger(number) || number < 1 || !/^[A-Z]?$/.test(compartment) || legacyStables.some(item => item.number === number && item.compartment === compartment)) return;
     const baseId = typeof stable.id === 'string' && /^[A-Za-z0-9_-]+$/.test(stable.id) ? stable.id : stableIdFor(number, compartment);
     let id = baseId;
     let suffix = 2;
-    while (stables.some(item => item.id === id)) id = `${baseId}-${suffix++}`;
-    stables.push({ id, number, compartment, milkMode: stable.milkMode === 'individual' ? 'individual' : 'youngest' });
+    while (legacyStables.some(item => item.id === id)) id = `${baseId}-${suffix++}`;
+    legacyStables.push({ id, number, compartment, milkMode: stable.milkMode === 'individual' ? 'individual' : 'youngest' });
   });
-  if (!stables.length) stables.push(...createDefaultStables());
+  if (!legacyStables.length) legacyStables.push(...createDefaultStables());
 
-  const calves = (d.calves || []).map(calf => {
-    let stable = stables.find(item => item.id === calf.stable);
-    if (!stable) {
+  const calfEntries = (d.calves || []).map(calf => {
+    let sourceStable = legacyStables.find(item => item.id === calf.stable);
+    if (!sourceStable) {
       const reference = String(calf.stable ?? '').match(/^(?:stable-|stall\s*)?(\d+)([a-z]?)$/i);
       if (reference) {
         const number = Number(reference[1]);
         const compartment = reference[2].toUpperCase();
-        stable = stables.find(item => item.number === number && item.compartment === compartment);
-        if (!stable && Number.isSafeInteger(number) && number > 0) {
-          const id = uniqueStableId(number, compartment, stables);
-          stable = { id, number, compartment, milkMode: 'youngest' };
-          stables.push(stable);
+        sourceStable = legacyStables.find(item => item.number === number && item.compartment === compartment);
+        if (!sourceStable && Number.isSafeInteger(number) && number > 0) {
+          sourceStable = { id: uniqueStableId(number, compartment, legacyStables), number, compartment, milkMode: 'youngest' };
+          legacyStables.push(sourceStable);
         }
       }
     }
-    return { ...calf, stable: stable?.id || stables[0].id };
+    const stableNumber = sourceStable?.number || legacyStables[0].number;
+    return {
+      stableNumber,
+      calf: { ...calf, stableSince: calf.stableSince || calf.birthDate, treatments: Array.isArray(calf.treatments) ? calf.treatments : [] }
+    };
   });
+
+  const legacyNumbers = [...new Set(legacyStables.map(stable => stable.number))];
+  const stableLayouts = {};
+  const stables = [];
+  legacyNumbers.forEach(number => {
+    const previousUnits = legacyStables.filter(stable => stable.number === number);
+    const savedLayout = d.stableLayouts?.[number];
+    const layout = savedLayout === 'large' || savedLayout === 'dual'
+      ? savedLayout
+      : previousUnits.some(stable => stable.compartment) ? 'dual' : 'large';
+    stableLayouts[number] = layout;
+    const compartments = layout === 'dual' ? ['A', 'B', 'C'] : [''];
+    compartments.forEach(compartment => {
+      const previous = previousUnits.find(stable => stable.compartment === compartment);
+      stables.push({
+        id: previous?.id || uniqueStableId(number, compartment, stables),
+        number,
+        compartment,
+        milkMode: previous?.milkMode || (layout === 'dual' ? 'individual' : 'youngest')
+      });
+    });
+  });
+
+  const calvesByNumber = new Map();
+  calfEntries.forEach(entry => {
+    if (!calvesByNumber.has(entry.stableNumber)) calvesByNumber.set(entry.stableNumber, []);
+    calvesByNumber.get(entry.stableNumber).push(entry.calf);
+  });
+  legacyNumbers.forEach(number => {
+    const calves = calvesByNumber.get(number) || [];
+    const units = stables.filter(stable => stable.number === number);
+    distributeCalves(calves, units);
+  });
+  const calves = calfEntries.map(entry => entry.calf);
   return {
     calves,
     stables: sortStables(stables),
+    stableLayouts,
     plan: normalizePlan(d.plan),
     corrections: d.corrections || {},
     taskDelayHours: d.taskDelayHours ?? 3,
@@ -234,19 +285,52 @@ async function loadRemote() {
     hideSpinner();
   }
 }
-function openStable(stable){selectedStable=stable;renderModal();document.getElementById('stableModal').classList.remove('hidden');}
+function openStable(stable){selectedStable=stable;renderModal();const modal=document.getElementById('stableModal');modal.classList.remove('hidden');const content=modal.querySelector('.modal-scroll-content');content.scrollTop=0;requestAnimationFrame(()=>{content.scrollTop=0;});}
 function navigateStable(direction){const stables=sortStables(data.stables);if(!stables.length)return;const index=stables.findIndex(stable=>stable.id===selectedStable);openStable(stables[(index+direction+stables.length)%stables.length].id);}
+function setStableLayout(number, layout){
+  const previousUnits=stableUnits(number),previousIds=new Set(previousUnits.map(stable=>stable.id));
+  const calves=data.calves.filter(calf=>previousIds.has(calf.stable));
+  const remainingStables=data.stables.filter(stable=>stable.number!==number);
+  const compartments=layout==='dual'?['A','B','C']:[''];
+  const nextUnits=[];
+  compartments.forEach(compartment=>{
+    const previous=previousUnits.find(stable=>stable.compartment===compartment);
+    nextUnits.push({
+      id:previous?.id||uniqueStableId(number,compartment,[...remainingStables,...nextUnits]),
+      number,
+      compartment,
+      milkMode:layout==='dual'?'individual':'youngest'
+    });
+  });
+  data.stables=[...remainingStables,...nextUnits];
+  data.stableLayouts[number]=layout;
+  distributeCalves(calves,nextUnits);
+}
 function renderStableList(){
   const grid=document.getElementById('stableManagementGrid');
   if(!grid)return;
-  const stables=sortStables(data.stables);
-  document.getElementById('stableManagementCount').textContent=`${stables.length} ${stables.length===1?'Stall':'Ställe'}`;
-  grid.innerHTML=stables.map(stable=>{
-    const calfCount=data.calves.filter(calf=>calf.stable===stable.id).length;
-    const milkMode=stable.milkMode==='individual'?'individual':'youngest';
-    return `<article class="stable-management-card"><div class="stable-management-icon" aria-hidden="true">${stable.number}${stable.compartment ? ` ${stable.compartment}` : ''}</div><div class="stable-management-details"><strong>${stableLabel(stable)}</strong><span>${calfCount} ${calfCount===1?'Kalb':'Kälber'}</span></div><button class="stable-remove-button" type="button" data-remove-stable="${stable.id}" aria-label="${stableLabel(stable)} entfernen" title="Stall entfernen">×</button><fieldset class="stable-milk-mode"><legend>Milchmenge</legend><div class="stable-milk-mode-options"><label><input type="radio" name="milkMode-${stable.id}" data-stable-milk-mode="${stable.id}" value="youngest" ${milkMode==='youngest'?'checked':''}><span>Jüngstes Kalb</span></label><label><input type="radio" name="milkMode-${stable.id}" data-stable-milk-mode="${stable.id}" value="individual" ${milkMode==='individual'?'checked':''}><span>Individual</span></label></div></fieldset></article>`;
+  const numbers=stableNumbers();
+  document.getElementById('stableManagementCount').textContent=`${numbers.length} ${numbers.length===1?'Stall':'Ställe'}`;
+  grid.innerHTML=numbers.map(number=>{
+    const units=stableUnits(number),unitIds=new Set(units.map(stable=>stable.id));
+    const calfCount=data.calves.filter(calf=>unitIds.has(calf.stable)).length;
+    const dual=stableLayout(number)==='dual';
+    const unitSettings=units.map(stable=>{
+      const milkMode=stable.milkMode==='individual'?'individual':'youngest';
+      return `<div class="stable-unit-settings"><strong>${stableLabel(stable)}</strong><fieldset class="stable-milk-mode"><legend>Milchmenge</legend><div class="stable-milk-mode-options"><label><input type="radio" name="milkMode-${stable.id}" data-stable-milk-mode="${stable.id}" value="youngest" ${milkMode==='youngest'?'checked':''}><span>Jüngstes Kalb</span></label><label><input type="radio" name="milkMode-${stable.id}" data-stable-milk-mode="${stable.id}" value="individual" ${milkMode==='individual'?'checked':''}><span>Individual</span></label></div></fieldset></div>`;
+    }).join('');
+    return `<article class="stable-management-card"><div class="stable-management-icon" aria-hidden="true">${number}</div><div class="stable-management-details"><strong>Stall ${number}</strong><span>${calfCount} ${calfCount===1?'Kalb':'Kälber'}</span></div><button class="stable-remove-button" type="button" data-remove-stable="${number}" aria-label="Stall ${number} entfernen" title="Stall entfernen">×</button><label class="stable-layout-switch"><span>Großstall</span><input type="checkbox" role="switch" data-stable-layout="${number}" aria-label="Stall ${number}: zwischen Großstall und Dualboxen umschalten" ${dual?'checked':''}><span class="stable-layout-slider" aria-hidden="true"></span><span>Dualboxen</span></label><div class="stable-unit-list">${unitSettings}</div></article>`;
   }).join('');
   grid.querySelectorAll('[data-remove-stable]').forEach(button=>button.onclick=()=>requestRemoveStable(button.dataset.removeStable));
+  grid.querySelectorAll('[data-stable-layout]').forEach(input=>input.onchange=async()=>{
+    const number=Number(input.dataset.stableLayout),wasSelected=stableUnits(number).some(stable=>stable.id===selectedStable),modalOpen=!document.getElementById('stableModal').classList.contains('hidden');
+    const ok=await mutateAndSave(()=>setStableLayout(number,input.checked?'dual':'large'));
+    if(ok){
+      if(wasSelected)selectedStable=stableUnits(number)[0].id;
+      renderOverview();
+      if(modalOpen)renderModal();
+    }
+  });
   grid.querySelectorAll('[data-stable-milk-mode]').forEach(input=>input.onchange=async()=>{
     const stable=data.stables.find(item=>item.id===input.dataset.stableMilkMode);
     if(!stable)return;
@@ -254,13 +338,13 @@ function renderStableList(){
     if(ok)renderOverview();
   });
 }
-function requestRemoveStable(stableId){
-  const stable=data.stables.find(item=>item.id===stableId);
-  if(!stable)return;
-  if(data.calves.some(calf=>calf.stable===stableId)){showToast(`${stableLabel(stable)} ist belegt. Bitte zuerst alle Kälber umstallen.`);return;}
-  if(data.stables.length<=1){showToast('Der letzte Stall kann nicht entfernt werden.');return;}
-  pendingRemoveStableId=stableId;
-  document.getElementById('removeStableText').textContent=`${stableLabel(stable)} wirklich entfernen?`;
+function requestRemoveStable(number){
+  if(!stableUnits(Number(number)).length)return;
+  const unitIds=new Set(stableUnits(Number(number)).map(stable=>stable.id));
+  if(data.calves.some(calf=>unitIds.has(calf.stable))){showToast(`Stall ${number} ist belegt. Bitte zuerst alle Kälber umstallen.`);return;}
+  if(stableNumbers().length<=1){showToast('Der letzte Stall kann nicht entfernt werden.');return;}
+  pendingRemoveStableId=Number(number);
+  document.getElementById('removeStableText').textContent=`Stall ${number} wirklich entfernen?`;
   document.getElementById('removeStableModal').classList.remove('hidden');
 }
 function openTask(calfId,index){selectedCalf=data.calves.find(c=>c.id===calfId);selectedTreatment=index;const t=selectedCalf.treatments[index];document.getElementById('treatmentForm').reset();document.querySelector('[name="dateTime"]').value=dateTimeKey(new Date());document.querySelector('[name="diagnosis"]').value=t.diagnosis;document.querySelector('[name="treatment"]').value=t.treatment;document.querySelector(`[name="status"][value="${t.status||'repeat'}"]`).checked=true;document.getElementById('treatmentModal').classList.remove('hidden');}
@@ -419,21 +503,23 @@ document.getElementById('stableForm').onsubmit=async event=>{
   const stableForm=event.currentTarget;
   const form=new FormData(stableForm);
   const number=Number(form.get('stableNumber'));
-  const compartment=String(form.get('stableCompartment')||'').trim().toUpperCase();
-  if(!Number.isSafeInteger(number)||number<1||!/^[A-Z]?$/.test(compartment)){showToast('Bitte eine gültige Stallnummer und höchstens einen Großbuchstaben eingeben.');return;}
-  if(data.stables.some(stable=>stable.number===number&&stable.compartment===compartment)){showToast('Dieser Stall ist bereits in der Stallliste.');return;}
-  const stable={id:uniqueStableId(number,compartment,data.stables),number,compartment,milkMode:'youngest'};
-  const ok=await mutateAndSave(()=>data.stables.push(stable));
+  if(!Number.isSafeInteger(number)||number<1){showToast('Bitte eine gültige Stallnummer eingeben.');return;}
+  if(stableNumbers().includes(number)){showToast('Diese Stallnummer ist bereits in der Stallliste.');return;}
+  const stable={id:uniqueStableId(number,'',data.stables),number,compartment:'',milkMode:'youngest'};
+  const ok=await mutateAndSave(()=>{data.stables.push(stable);data.stableLayouts[number]='large';});
   if(ok){stableForm.reset();renderOverview();}
 };
 document.getElementById('confirmRemoveStable').onclick=async()=>{
-  const stableId=pendingRemoveStableId;
-  if(!stableId)return;
-  if(data.calves.some(calf=>calf.stable===stableId)){showToast('Der Stall ist inzwischen belegt. Bitte zuerst alle Kälber umstallen.');close('removeStableModal');return;}
-  if(data.stables.length<=1){showToast('Der letzte Stall kann nicht entfernt werden.');close('removeStableModal');return;}
+  const number=pendingRemoveStableId;
+  if(!number)return;
+  const unitIds=new Set(stableUnits(number).map(stable=>stable.id));
+  if(data.calves.some(calf=>unitIds.has(calf.stable))){showToast('Der Stall ist inzwischen belegt. Bitte zuerst alle Kälber umstallen.');close('removeStableModal');return;}
+  if(stableNumbers().length<=1){showToast('Der letzte Stall kann nicht entfernt werden.');close('removeStableModal');return;}
   const ok=await mutateAndSave(()=>{
-    data.stables=data.stables.filter(stable=>stable.id!==stableId);
-    if(selectedStable===stableId)selectedStable=sortStables(data.stables)[0].id;
+    const removedIds=new Set(unitIds);
+    data.stables=data.stables.filter(stable=>stable.number!==number);
+    delete data.stableLayouts[number];
+    if(removedIds.has(selectedStable))selectedStable=sortStables(data.stables)[0].id;
   });
   if(ok){renderOverview();if(!document.getElementById('stableModal').classList.contains('hidden'))renderModal();}
   pendingRemoveStableId=null;
@@ -730,7 +816,14 @@ const guidedTourSteps = [
     target: '#stableForm',
     eyebrow: 'STALLVERWALTUNG',
     title: 'Einen Stall anlegen',
-    text: 'Stallnummer eingeben, optional einen Buchstaben ergänzen und „Stall hinzufügen“ wählen.'
+    text: 'Eine neue Hauptstallnummer eingeben und „Stall hinzufügen“ wählen.'
+  },
+  {
+    view: 'settings',
+    getTarget: () => document.querySelector('#stableManagementGrid [data-stable-layout]')?.closest('.stable-layout-switch'),
+    eyebrow: 'STALLVERWALTUNG',
+    title: 'Großstall oder Dualboxen',
+    text: 'Mit dem Schiebeschalter wechselst du zwischen einem gemeinsamen Stall und den drei Abteilen A, B und C.'
   },
   {
     view: 'settings',
