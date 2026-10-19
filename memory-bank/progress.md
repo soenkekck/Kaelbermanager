@@ -27,6 +27,9 @@
 - **UI & Usability:**
   - Touch-friendly layout and virtual numeric keypad modal.
   - Responsive design optimized for tablets and mobile devices in the barn.
+  - Stall detail calf rows use a compact tablet layout and a wrapped action row on narrow phones; all calf actions remain visible without horizontal overflow.
+  - Calf age is available in the info-button disclosure with birth and stall-entry dates when omitted from the compact row.
+  - Info button highlight reflects its expanded state and clears after collapsing, including on touch devices with persistent hover.
 
 ## What's Left to Build
 - All core requirements of the initial project scope are fully implemented and operational. Future enhancements can be added as requested.

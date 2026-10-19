@@ -32,6 +32,7 @@ The application follows a lightweight Client-Server architecture utilizing a sta
    - Native system keyboards, with numeric and decimal input modes selected per field.
    - Modal dialogs for calf registration, treatment logging, pen selection, and settings.
    - Responsive CSS grid (`stableGrid`) representing all configured stalls; one shared numeric/compartment sort order drives stall cards, detail navigation, and transfer choices.
+   - Calf rows in the stall detail modal use a compact three-column arrangement at portrait-tablet widths and wrap action buttons below the calf and milk summary on narrow phones. Age is disclosed with birth and stall-entry dates through the info button; its `aria-expanded` state controls the visual highlight.
 5. **Robust Error Handling & Connection Monitoring:**
    - Connection LED indicator (`connectionLED`) reflecting remote sync health.
    - Data validation (`ensureValidData`) ensuring payload integrity before saving.
