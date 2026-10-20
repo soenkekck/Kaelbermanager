@@ -110,12 +110,13 @@ function ensureValidData(d) {
     distributeCalves(calves, units);
   });
   const calves = calfEntries.map(entry => entry.calf);
+  const plan = normalizePlan(d.plan);
   return {
     calves,
     stables: sortStables(stables),
     stableLayouts,
-    plan: normalizePlan(d.plan),
-    corrections: d.corrections || {},
+    plan,
+    corrections: normalizeCorrections(d.corrections, plan),
     taskDelayHours: d.taskDelayHours ?? 3,
     suggestions: d.suggestions || { diagnosis: [], treatment: [] }
   };
@@ -125,6 +126,19 @@ function normalizePlan(plan) {
   return (plan || structuredClone(defaultPlan)).map(row => ({
     ...row,
     milkType: row.milkType === 'milchersatz' ? 'milchersatz' : 'vollmilch'
+  }));
+}
+
+function normalizeCorrections(corrections, plan) {
+  const availableMilkTypes = new Set(plan.map(row => row.milkType));
+  const source = corrections && typeof corrections === 'object' && !Array.isArray(corrections) ? corrections : {};
+  return Object.fromEntries(Object.entries(source).map(([stable, values]) => {
+    const correction = values && typeof values === 'object' && !Array.isArray(values) ? values : {};
+    return [stable, {
+      ...correction,
+      vollmilch: availableMilkTypes.has('vollmilch') ? Number(correction.vollmilch) || 0 : 0,
+      milchersatz: availableMilkTypes.has('milchersatz') ? Number(correction.milchersatz) || 0 : 0
+    }];
   }));
 }
 
@@ -141,31 +155,37 @@ function milk(calf) {
 function stableMilk(stable) {
   const stableRecord = data.stables.find(item => item.id === stable);
   const calves = data.calves.filter(calf => calf.stable === stable);
-  if (!calves.length) return { milkType: null, amount: 0, wholeMilk: 0, milkReplacer: 0 };
-
+  let wholeMilk = 0;
+  let milkReplacer = 0;
   if (stableRecord?.milkMode === 'individual') {
-    const totals = { vollmilch: 0, milchersatz: 0 };
     calves.forEach(calf => {
       const row = planRowFor(calf);
-      if (row) totals[row.milkType] += Number(row.amount) || 0;
+      if (row?.milkType === 'milchersatz') milkReplacer += Number(row.amount) || 0;
+      else if (row?.milkType === 'vollmilch') wholeMilk += Number(row.amount) || 0;
     });
-    const milkTypes = Object.entries(totals).filter(([, amount]) => amount > 0).map(([type]) => type);
-    return {
-      milkType: milkTypes.length > 1 ? 'mixed' : milkTypes[0] || null,
-      amount: totals.vollmilch + totals.milchersatz,
-      wholeMilk: totals.vollmilch,
-      milkReplacer: totals.milchersatz
-    };
+  } else if (calves.length) {
+    const youngest = calves.reduce((current, calf) => days(calf.birthDate) < days(current.birthDate) ? calf : current);
+    const row = planRowFor(youngest);
+    const amount = (row ? Number(row.amount) : 0) * calves.length;
+    if (row?.milkType === 'milchersatz') milkReplacer = amount;
+    else if (row?.milkType === 'vollmilch') wholeMilk = amount;
   }
-
-  const youngest = calves.reduce((current, calf) => days(calf.birthDate) < days(current.birthDate) ? calf : current);
-  const row = planRowFor(youngest);
-  const amount = (row ? Number(row.amount) : 0) * calves.length;
+  const correction = data.corrections?.[stable] || {};
+  const baseWholeMilk = wholeMilk;
+  const baseMilkReplacer = milkReplacer;
+  wholeMilk += Number(correction.vollmilch) || 0;
+  milkReplacer += Number(correction.milchersatz) || 0;
+  const milkTypes = [
+    wholeMilk !== 0 ? 'vollmilch' : null,
+    milkReplacer !== 0 ? 'milchersatz' : null
+  ].filter(Boolean);
   return {
-    milkType: row?.milkType || null,
-    amount,
-    wholeMilk: row?.milkType === 'vollmilch' ? amount : 0,
-    milkReplacer: row?.milkType === 'milchersatz' ? amount : 0
+    milkType: milkTypes.length > 1 ? 'mixed' : milkTypes[0] || null,
+    amount: wholeMilk + milkReplacer,
+    wholeMilk,
+    milkReplacer,
+    baseWholeMilk,
+    baseMilkReplacer
   };
 }
 function updateConnectionStatus(success){ const led = document.getElementById('connectionLED'); if (led) { if (success) { led.classList.remove('disconnected'); led.classList.add('connected'); } else { led.classList.remove('connected'); led.classList.add('disconnected'); } } }
@@ -387,15 +407,41 @@ function renderModal(){
     stableQuantity=stableMilk(selectedStable);
   document.getElementById('modalTitle').textContent=stableLabel(data.stables.find(stable=>stable.id===selectedStable));
   document.getElementById('modalCalves').textContent=cs.length;
-  const modalMilk=document.getElementById('modalMilk');
-  const isMixedMilk=stableQuantity.milkType==='mixed';
-  modalMilk.classList.toggle('mixed',isMixedMilk);
-  modalMilk.innerHTML=isMixedMilk
-    ? `<span class="modal-milk-item"><span class="modal-milk-amount">${litres(stableQuantity.wholeMilk)}</span><span class="modal-milk-caption">Vollmilch</span></span><span class="modal-milk-item"><span class="modal-milk-amount">${litres(stableQuantity.milkReplacer)}</span><span class="modal-milk-caption">Milchersatz</span></span>`
-    : litres(stableQuantity.amount);
-  const modalMilkType=document.getElementById('modalMilkType');
-  modalMilkType.hidden=isMixedMilk;
-  if(!isMixedMilk)modalMilkType.textContent=stableQuantity.milkType==='milchersatz'?'Milchersatz':stableQuantity.milkType==='vollmilch'?'Vollmilch':'Milchmenge';
+  const correction=data.corrections?.[selectedStable]||{};
+  const milkItems=[
+    ['vollmilch','Vollmilch',stableQuantity.baseWholeMilk,stableQuantity.wholeMilk,Number(correction.vollmilch)||0,'modalWholeMilk','modalWholeMilkAmount','modalWholeMilkCorrection'],
+    ['milchersatz','Milchersatz',stableQuantity.baseMilkReplacer,stableQuantity.milkReplacer,Number(correction.milchersatz)||0,'modalMilkReplacer','modalMilkReplacerAmount','modalMilkReplacerCorrection']
+  ];
+  const visibleMilkItems=milkItems.filter(([, ,base,,value])=>base>0||value!==0);
+  const hasOneMilkType=visibleMilkItems.length===1;
+  const modalStats=document.querySelector('#stableModal .modal-stats');
+  const modalCorrections=document.getElementById('modalCorrections');
+  modalStats.classList.toggle('has-one-milk',hasOneMilkType);
+  modalCorrections.classList.toggle('has-one-milk',hasOneMilkType);
+  modalCorrections.hidden=visibleMilkItems.length===0;
+  document.getElementById('modalMilkEmpty').hidden=visibleMilkItems.length>0;
+  for(const [type,label,base,amount,value,totalId,amountId,correctionId] of milkItems){
+    const visible=base>0||value!==0;
+    const totalElement=document.getElementById(totalId);
+    const correctionElement=document.getElementById(correctionId);
+    totalElement.hidden=!visible;
+    correctionElement.hidden=!visible;
+    if(!visible)continue;
+    document.getElementById(amountId).textContent=litres(amount);
+    correctionElement.innerHTML=`<div class="modal-correction-controls"><button type="button" data-milk-correction="${type}" data-adjust="0.5" aria-label="${label}: Korrektur um 0,5 l erhöhen">+</button><button class="modal-correction-value" type="button" data-correction-reset="${type}" aria-label="${label}: ${litres(value)} Korrektur, doppeltippen zum Zurücksetzen" title="Doppeltippen zum Zurücksetzen">${litres(value)}</button><button type="button" data-milk-correction="${type}" data-adjust="-0.5" aria-label="${label}: Korrektur um 0,5 l verringern">−</button></div>`;
+  }
+  const updateCorrection=async(type,adjustment)=>{
+    const ok=await mutateAndSave(()=>{
+      const correction=data.corrections[selectedStable]|| (data.corrections[selectedStable]={});
+      correction[type]=adjustment==='reset'?0:Math.round(((Number(correction[type])||0)+Number(adjustment))*10)/10;
+    });
+    if(ok){renderOverview();renderModal();}
+  };
+  document.querySelectorAll('#stableModal button[data-milk-correction]').forEach(button=>button.onclick=()=>updateCorrection(button.dataset.milkCorrection,button.dataset.adjust));
+  document.querySelectorAll('#stableModal [data-correction-reset]').forEach(button=>{
+    button.ondblclick=()=>updateCorrection(button.dataset.correctionReset,'reset');
+    button.onkeydown=event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();updateCorrection(button.dataset.correctionReset,'reset');}};
+  });
   
   document.getElementById('modalTasks').innerHTML=tasks.map(x=>`<div class="task-item"><button class="task-button" data-task-id="${x.calf.id}" data-task-index="${x.index}"><span class="calf-tag">${x.calf.tag}</span><strong>${x.treatment.diagnosis}</strong><span>${x.treatment.treatment}</span></button><button class="task-done" data-task-id="${x.calf.id}" data-task-index="${x.index}" aria-label="Behandlung öffnen">✓</button><button class="task-delete" data-task-id="${x.calf.id}" data-task-index="${x.index}" aria-label="Aufgabe ausblenden" title="Aufgabe ausblenden">×</button></div>`).join('');
   document.getElementById('calfList').innerHTML=cs.map(c=>{
@@ -569,7 +615,7 @@ document.addEventListener('focusin',event=>{
 document.querySelectorAll('[data-plan="ageTo"]').forEach(input=>input.addEventListener('input',()=>{const index=Number(input.dataset.index);const next=document.querySelector(`[data-plan="ageFrom"][data-index="${index+1}"]`);if(next){next.value=Number(input.value)+1;data.plan[index+1].ageFrom=Number(input.value)+1;}renderPlanLive?.();}));
 document.addEventListener('input',event=>{if(!event.target.matches('[data-plan="ageTo"]'))return;const index=Number(event.target.dataset.index);const next=document.querySelector(`[data-plan="ageFrom"][data-index="${index+1}"]`);if(next){next.value=Number(event.target.value)+1;data.plan[index+1].ageFrom=Number(event.target.value)+1;const row=next.closest('tr');row.querySelector('.range-output').textContent=planText(data.plan[index+1]);}});
 function validatePlan(){let valid=true;data.plan.forEach((row,index)=>{const from=document.querySelector(`[data-plan="ageFrom"][data-index="${index}"]`);const to=document.querySelector(`[data-plan="ageTo"][data-index="${index}"]`);const ageFrom=Number(from?.value);const ageTo=Number(to?.value);if(ageTo<ageFrom){to.setCustomValidity('Bis muss mindestens Von entsprechen');valid=false;}else if(to){to.setCustomValidity('');}if(index>0){const previousTo=Number(document.querySelector(`[data-plan="ageTo"][data-index="${index-1}"]`)?.value);if(ageFrom!==previousTo+1){from.setCustomValidity(`Muss Tag ${previousTo+1} sein`);valid=false;}else if(from){from.setCustomValidity('');}}else if(from){from.setCustomValidity('');}});return valid;}
-document.getElementById('savePlanButton').onclick=async()=>{if(!validatePlan()){document.querySelector(':invalid')?.reportValidity();return;}syncPlanFromInputs();await save();renderPlan();renderOverview();};
+document.getElementById('savePlanButton').onclick=async()=>{if(!validatePlan()){document.querySelector(':invalid')?.reportValidity();return;}syncPlanFromInputs();data.corrections=normalizeCorrections(data.corrections,data.plan);await save();renderPlan();renderOverview();};
 function saveConfig(){config.sheetId=document.getElementById('sheetId').value.trim();config.apiUrl=document.getElementById('apiUrl').value.trim();localStorage.setItem(STORAGE_KEY,JSON.stringify(config));}
 document.getElementById('openSettingsButton').onclick = () => openSettingsModal(false);
 document.getElementById('closeSettingsModal').onclick = () => { if (!isSettingsLocked) close('settingsModal'); };
