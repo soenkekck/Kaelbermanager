@@ -124,12 +124,12 @@ function ensureValidData(d) {
 function normalizePlan(plan) {
   return (plan || structuredClone(defaultPlan)).map(row => ({
     ...row,
-    milkType: row.milkType === 'milchersatz' ? 'milchersatz' : 'vollmilch'
+    milkType: ['milchersatz', 'halb-halb'].includes(row.milkType) ? row.milkType : 'vollmilch'
   }));
 }
 
 function normalizeCorrections(corrections, plan) {
-  const availableMilkTypes = new Set(plan.map(row => row.milkType));
+  const availableMilkTypes = new Set(plan.flatMap(row => row.milkType === 'halb-halb' ? ['vollmilch', 'milchersatz'] : [row.milkType]));
   const source = corrections && typeof corrections === 'object' && !Array.isArray(corrections) ? corrections : {};
   return Object.fromEntries(Object.entries(source).map(([stable, values]) => {
     const correction = values && typeof values === 'object' && !Array.isArray(values) ? values : {};
@@ -151,6 +151,13 @@ function milk(calf) {
   return row ? Number(row.amount) : 0;
 }
 
+function milkAmounts(row, multiplier = 1) {
+  const amount = (Number(row?.amount) || 0) * multiplier;
+  if (row?.milkType === 'milchersatz') return { wholeMilk: 0, milkReplacer: amount };
+  if (row?.milkType === 'halb-halb') return { wholeMilk: amount / 2, milkReplacer: amount / 2 };
+  return { wholeMilk: amount, milkReplacer: 0 };
+}
+
 function stableMilk(stable) {
   const stableRecord = data.stables.find(item => item.id === stable);
   const calves = data.calves.filter(calf => calf.stable === stable);
@@ -158,16 +165,15 @@ function stableMilk(stable) {
   let milkReplacer = 0;
   if (stableRecord?.milkMode === 'individual') {
     calves.forEach(calf => {
-      const row = planRowFor(calf);
-      if (row?.milkType === 'milchersatz') milkReplacer += Number(row.amount) || 0;
-      else if (row?.milkType === 'vollmilch') wholeMilk += Number(row.amount) || 0;
+      const amounts = milkAmounts(planRowFor(calf));
+      wholeMilk += amounts.wholeMilk;
+      milkReplacer += amounts.milkReplacer;
     });
   } else if (calves.length) {
     const youngest = calves.reduce((current, calf) => days(calf.birthDate) < days(current.birthDate) ? calf : current);
-    const row = planRowFor(youngest);
-    const amount = (row ? Number(row.amount) : 0) * calves.length;
-    if (row?.milkType === 'milchersatz') milkReplacer = amount;
-    else if (row?.milkType === 'vollmilch') wholeMilk = amount;
+    const amounts = milkAmounts(planRowFor(youngest), calves.length);
+    wholeMilk = amounts.wholeMilk;
+    milkReplacer = amounts.milkReplacer;
   }
   const correction = data.corrections?.[stable] || {};
   const baseWholeMilk = wholeMilk;
@@ -384,9 +390,9 @@ function renderOverview(){
         totalMilkReplacer += m.milkReplacer;
     totalCalves+=cs.length;
     totalTasks+=tasks.length;
-    const milkLabel=m.milkType==='milchersatz'?'Milchersatz':m.milkType==='vollmilch'?'Vollmilch':'Milchmenge';
+    const milkLabel=m.milkType==='milchersatz'?'MAT':m.milkType==='vollmilch'?'Vollmilch':'Milchmenge';
     const milkMarkup=m.milkType==='mixed'
-      ? `<div class="stable-milk mixed"><span><span>Vollmilch</span><strong>${litres(m.wholeMilk)}</strong></span><span><span>Milchersatz</span><strong>${litres(m.milkReplacer)}</strong></span></div>`
+      ? `<div class="stable-milk mixed"><span><span>Vollmilch</span><strong>${litres(m.wholeMilk)}</strong></span><span><span>MAT</span><strong>${litres(m.milkReplacer)}</strong></span></div>`
       : `<div class="stable-milk"><span>${milkLabel}</span><strong>${litres(m.amount)}</strong></div>`;
     const treatmentBadge=tasks.length
       ? `<div class="treatment-badge"><span class="treatment-icon" aria-hidden="true">${treatmentIcon}</span> ${tasks.length} Behandlung${tasks.length>1?'en':''} nötig</div>`
@@ -409,7 +415,7 @@ function renderModal(){
   const correction=data.corrections?.[selectedStable]||{};
   const milkItems=[
     ['vollmilch','Vollmilch',stableQuantity.baseWholeMilk,stableQuantity.wholeMilk,Number(correction.vollmilch)||0,'modalWholeMilk','modalWholeMilkAmount','modalWholeMilkCorrection'],
-    ['milchersatz','Milchersatz',stableQuantity.baseMilkReplacer,stableQuantity.milkReplacer,Number(correction.milchersatz)||0,'modalMilkReplacer','modalMilkReplacerAmount','modalMilkReplacerCorrection']
+    ['milchersatz','MAT',stableQuantity.baseMilkReplacer,stableQuantity.milkReplacer,Number(correction.milchersatz)||0,'modalMilkReplacer','modalMilkReplacerAmount','modalMilkReplacerCorrection']
   ];
   const visibleMilkItems=milkItems.filter(([, ,base,,value])=>base>0||value!==0);
   const hasOneMilkType=visibleMilkItems.length===1;
@@ -447,7 +453,7 @@ function renderModal(){
     const calfAgeDays=days(c.birthDate),
       calfAgeWeeks=Math.floor(calfAgeDays/7),
       remainingAgeDays=calfAgeDays%7,
-      calfMilkType=planRowFor(c)?.milkType==='milchersatz'?'Milchersatz':'Vollmilch',
+      calfMilkType=planRowFor(c)?.milkType==='milchersatz'?'MAT':planRowFor(c)?.milkType==='halb-halb'?'50/50':'Vollmilch',
       calfTreatments=c.treatments||[],
       olderTreatmentCount=Math.max(0,calfTreatments.length-3),
       treatmentHistory=calfTreatments.length?`<div class="treatments"><div class="treatment-history-header"><span class="treatment-history-label">Behandlungshistorie</span>${calfTreatments.length>3?`<button class="treatment-history-toggle" type="button" data-calf-history="${c.id}" aria-label="Ältere Behandlungen anzeigen" aria-expanded="false" title="Ältere Behandlungen anzeigen">⌄</button>`:''}</div><div class="treatment-history-list">${calfTreatments.map((t,index)=>`<div class="treatment-entry"${index<olderTreatmentCount?' hidden':''}><strong>${dateTime(t.dateTime||`${t.date}T00:00`)}</strong><span>${t.diagnosis} · ${t.treatment}${t.status==='repeat'?' · Wiederholen':''}${t.status==='completed'?' · Abgeschlossen':''}</span></div>`).join('')}</div></div>`:'';
@@ -491,7 +497,7 @@ function planText(r){return `Woche ${Math.ceil(r.ageFrom/7)}, Tag ${(r.ageFrom-1
 function renderPlan(){
   if (!data.plan) data.plan = structuredClone(defaultPlan);
   data.plan = normalizePlan(data.plan);
-  document.getElementById('planBody').innerHTML=data.plan.map((r,i)=>`<tr><td><input class="plan-amount" data-plan="amount" data-index="${i}" type="number" inputmode="decimal" min="0" step="0.5" value="${r.amount}"></td><td><fieldset class="milk-type-switch"><legend class="visually-hidden">Milchart</legend><label><input type="radio" name="milkType-${i}" data-plan="milkType" data-index="${i}" value="vollmilch" ${r.milkType==='vollmilch'?'checked':''}><span>Vollmilch</span></label><label><input type="radio" name="milkType-${i}" data-plan="milkType" data-index="${i}" value="milchersatz" ${r.milkType==='milchersatz'?'checked':''}><span>Milchersatz</span></label></fieldset></td><td><input data-plan="ageFrom" data-index="${i}" type="number" inputmode="numeric" min="${i ? Number(data.plan[i-1].ageFrom)+1 : 1}" value="${r.ageFrom}"></td><td><input data-plan="ageTo" data-index="${i}" type="number" inputmode="numeric" min="1" value="${r.ageTo}"></td><td><output class="range-output">${planText(r)}</output></td><td><button class="remove-plan" data-remove-plan="${i}">×</button></td></tr>`).join('');
+  document.getElementById('planBody').innerHTML=data.plan.map((r,i)=>`<tr><td><input class="plan-amount" data-plan="amount" data-index="${i}" type="number" inputmode="decimal" min="0" step="0.5" value="${r.amount}"></td><td><fieldset class="milk-type-switch"><legend class="visually-hidden">Milchart</legend><label><input type="radio" name="milkType-${i}" data-plan="milkType" data-index="${i}" value="vollmilch" ${r.milkType==='vollmilch'?'checked':''}><span>Vollmilch</span></label><label><input type="radio" name="milkType-${i}" data-plan="milkType" data-index="${i}" value="milchersatz" ${r.milkType==='milchersatz'?'checked':''}><span>MAT</span></label><label><input type="radio" name="milkType-${i}" data-plan="milkType" data-index="${i}" value="halb-halb" ${r.milkType==='halb-halb'?'checked':''}><span>50/50</span></label></fieldset></td><td><input data-plan="ageFrom" data-index="${i}" type="number" inputmode="numeric" min="${i ? Number(data.plan[i-1].ageFrom)+1 : 1}" value="${r.ageFrom}"></td><td><input data-plan="ageTo" data-index="${i}" type="number" inputmode="numeric" min="1" value="${r.ageTo}"></td><td><output class="range-output">${planText(r)}</output></td><td><button class="remove-plan" data-remove-plan="${i}">×</button></td></tr>`).join('');
   document.querySelectorAll('[data-plan="ageFrom"]').forEach(input=>{
     input.oninput=()=>{
       const index=Number(input.dataset.index);

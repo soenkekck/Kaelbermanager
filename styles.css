@@ -458,9 +458,9 @@ button{min-height:52px}
   .page-head { padding-left: 16px; padding-right: 16px; }
 }
 .plan-table-wrap table { min-width: 760px; }
-#planView .plan-table-wrap table { min-width: 640px; table-layout: fixed; }
+#planView .plan-table-wrap table { min-width: 690px; table-layout: fixed; }
 #planView .plan-table-wrap th:nth-child(1), #planView .plan-table-wrap td:nth-child(1) { width: 78px; }
-#planView .plan-table-wrap th:nth-child(2), #planView .plan-table-wrap td:nth-child(2) { width: 220px; }
+#planView .plan-table-wrap th:nth-child(2), #planView .plan-table-wrap td:nth-child(2) { width: 270px; }
 #planView .plan-table-wrap th:nth-child(3), #planView .plan-table-wrap td:nth-child(3),
 #planView .plan-table-wrap th:nth-child(4), #planView .plan-table-wrap td:nth-child(4) { width: 64px; }
 #planView .plan-table-wrap th:nth-child(6), #planView .plan-table-wrap td:nth-child(6) { width: 60px; }
