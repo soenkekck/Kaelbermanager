@@ -73,6 +73,8 @@ function ensureValidData(d) {
     const stableNumber = sourceStable?.number || legacyStables[0].number;
     return {
       stableNumber,
+      stableId: sourceStable?.id,
+      compartment: sourceStable?.compartment || '',
       calf: { ...calf, stableSince: calf.stableSince || calf.birthDate, treatments: Array.isArray(calf.treatments) ? calf.treatments : [] }
     };
   });
@@ -99,15 +101,12 @@ function ensureValidData(d) {
     });
   });
 
-  const calvesByNumber = new Map();
   calfEntries.forEach(entry => {
-    if (!calvesByNumber.has(entry.stableNumber)) calvesByNumber.set(entry.stableNumber, []);
-    calvesByNumber.get(entry.stableNumber).push(entry.calf);
-  });
-  legacyNumbers.forEach(number => {
-    const calves = calvesByNumber.get(number) || [];
-    const units = stables.filter(stable => stable.number === number);
-    distributeCalves(calves, units);
+    const stable = stables.find(item => item.number === entry.stableNumber && item.id === entry.stableId)
+      || stables.find(item => item.number === entry.stableNumber && item.compartment === entry.compartment)
+      || stables.find(item => item.number === entry.stableNumber)
+      || stables[0];
+    entry.calf.stable = stable.id;
   });
   const calves = calfEntries.map(entry => entry.calf);
   const plan = normalizePlan(d.plan);
